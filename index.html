@@ -128,6 +128,22 @@
         </div>
     </main>
 
+    <!-- Footer -->
+    <footer class="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 py-8 shrink-0">
+        <div class="max-w-5xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+            <div class="flex gap-4">
+                <button onclick="app.setView('terms')" class="hover:text-gray-900 dark:hover:text-white transition-colors">Terms of Service</button>
+                <button onclick="app.setView('privacy')" class="hover:text-gray-900 dark:hover:text-white transition-colors">Privacy Policy</button>
+                <button onclick="app.setView('refund')" class="hover:text-gray-900 dark:hover:text-white transition-colors">Refund Policy</button>
+            </div>
+            <div class="flex items-center gap-4">
+                <span>&copy; 2023 Study Guy</span>
+                <span class="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full"></span>
+                <a href="mailto:support@studyguy.app" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">support@studyguy.app</a>
+            </div>
+        </div>
+    </footer>
+
     <!-- Auth Modal -->
     <div id="auth-modal" class="fixed inset-0 bg-black/50 dark:bg-black/70 hidden items-center justify-center z-50 backdrop-blur-sm">
         <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden border border-gray-100 dark:border-gray-800">
@@ -148,6 +164,14 @@
                     
                     <div id="name-field" class="hidden">
                         <input type="text" id="auth-name" placeholder="Your Name (Optional)" class="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <!-- Legal Checkbox -->
+                        <div class="flex items-start gap-2 mt-2 p-1">
+                            <input type="checkbox" id="tos-check" class="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <label for="tos-check" class="text-xs text-gray-500 dark:text-gray-400">
+                                I agree to the <button type="button" onclick="app.setView('terms'); app.toggleAuthModal()" class="text-indigo-600 hover:underline">Terms of Service</button>. 
+                                By creating an account, I acknowledge the <button type="button" onclick="app.setView('privacy'); app.toggleAuthModal()" class="text-indigo-600 hover:underline">Privacy Policy</button>.
+                            </label>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3 pt-2">
@@ -284,7 +308,7 @@
         const STRIPE_PRICE_ID = "price_1SWjM6IBV0CJ7SHZJPpFHay6";
         
         // Admins who can see debug panel
-        const ADMINS = ['logan@aplamon.com', 'wawaerf5@gmail.com'];
+        const ADMINS = ['logan@aplamon.com'];
 
         const MODES = {
             blurt: { id: 'blurt', label: 'Blurting', icon: 'brain-circuit', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-100 dark:bg-indigo-900/30', theme: 'mode-blurt', desc: 'Write or speak everything you know. Graded on recall.', free: true },
@@ -474,6 +498,14 @@
                 const email = document.getElementById('auth-email').value;
                 const pass = document.getElementById('auth-password').value;
                 const nameInput = document.getElementById('auth-name').value;
+                const tosCheck = document.getElementById('tos-check');
+
+                if (type === 'register') {
+                    if (!tosCheck.checked) {
+                        this.showAuthError("You must agree to the Terms of Service");
+                        return;
+                    }
+                }
                 
                 if(!email || !pass) return this.showAuthError("Enter email and password");
                 try {
@@ -771,7 +803,7 @@
                 this.render(); 
             }
 
-            render() { this.container.innerHTML = ''; if (this.state.currentView === 'dashboard') this.container.innerHTML = this.renderDashboard(); else if (this.state.currentView === 'create') this.container.innerHTML = this.renderCreate(); else if (this.state.currentView === 'session') this.container.innerHTML = this.renderSession(); else if (this.state.currentView === 'result') this.container.innerHTML = this.renderResult(); lucide.createIcons(); }
+            render() { this.container.innerHTML = ''; if (this.state.currentView === 'dashboard') this.container.innerHTML = this.renderDashboard(); else if (this.state.currentView === 'create') this.container.innerHTML = this.renderCreate(); else if (this.state.currentView === 'session') this.container.innerHTML = this.renderSession(); else if (this.state.currentView === 'result') this.container.innerHTML = this.renderResult(); else if (this.state.currentView === 'privacy') this.container.innerHTML = this.renderPrivacy(); else if (this.state.currentView === 'terms') this.container.innerHTML = this.renderTerms(); else if (this.state.currentView === 'refund') this.container.innerHTML = this.renderRefund(); lucide.createIcons(); }
             
             renderDashboard() {
                 const topicsList = this.state.topics.map(topic => {
@@ -832,6 +864,48 @@
                 const hasPrev = this.state.historyIndex < topic.history.length - 1;
 
                 return `<div class="max-w-4xl mx-auto p-4 md:p-8 pb-20 animate-fade-in"><div class="flex items-center justify-between mb-6"><button onclick="app.setView('dashboard')" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 font-medium"><i data-lucide="arrow-left" class="w-4 h-4"></i> Dashboard</button><div class="flex items-center bg-white dark:bg-gray-800 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 p-1"><button onclick="app.navHistory(1)" ${!hasPrev ? 'disabled' : ''} class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors"><i data-lucide="chevron-left" class="w-4 h-4 text-gray-600 dark:text-gray-300"></i></button><span class="text-xs font-bold px-3 text-gray-500 dark:text-gray-400 min-w-[140px] text-center">${new Date(attempt.date).toLocaleDateString()} <span class="opacity-50">|</span> ${new Date(attempt.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span><button onclick="app.navHistory(-1)" ${!hasNext ? 'disabled' : ''} class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors"><i data-lucide="chevron-right" class="w-4 h-4 text-gray-600 dark:text-gray-300"></i></button></div></div><div class="bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden mb-8"><div class="bg-gray-900 dark:bg-gray-800 p-8 text-white flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden"><div class="absolute top-0 right-0 opacity-10 transform translate-x-10 -translate-y-10"><i data-lucide="${modeConfig.icon}" class="w-64 h-64"></i></div><div class="z-10 text-center md:text-left"><h2 class="text-3xl font-bold mb-2">Assessment Complete</h2><p class="text-gray-400 mb-6 max-w-sm">Results for <span class="text-white font-semibold">${topic.title}</span>.</p></div><div class="flex items-center gap-6 z-10 bg-white/5 p-4 rounded-2xl backdrop-blur-sm border border-white/10"><div class="text-center px-4 border-r border-white/10"><span class="block text-6xl font-black ${gradeColorClass}" style="text-shadow: 0 0 20px rgba(0,0,0,0.5);">${letterGrade}</span></div><div class="text-center px-2"><span class="block text-3xl font-bold text-white">${result.score}</span></div></div></div><div class="p-8 grid md:grid-cols-2 gap-8"><div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i data-lucide="thumbs-up" class="w-4 h-4 text-emerald-500"></i> Strengths</h3><div class="markdown-body text-sm text-gray-700 dark:text-gray-300 bg-emerald-50/50 dark:bg-emerald-900/10 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/20">${marked.parse(result.positive_feedback)}</div></div><div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i data-lucide="wrench" class="w-4 h-4 text-rose-500"></i> Improvements</h3><div class="markdown-body text-sm text-gray-700 dark:text-gray-300 bg-rose-50/50 dark:bg-rose-900/10 p-4 rounded-xl border border-rose-100 dark:border-rose-900/20">${marked.parse(result.constructive_feedback)}</div></div></div>${result.missing_concepts && result.missing_concepts.length ? `<div class="border-t border-gray-100 dark:border-gray-800 p-8 bg-gray-50 dark:bg-gray-800/50"><h3 class="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-4">Key Concepts to Review</h3><div class="flex flex-wrap gap-2">${result.missing_concepts.map(c => `<span class="px-3 py-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-md text-sm font-medium shadow-sm">${c}</span>`).join('')}</div></div>` : ''}<div class="p-4 bg-gray-100 dark:bg-gray-800 flex justify-center"><button onclick="app.setView('session', '${topic.id}')" class="text-gray-600 dark:text-gray-400 font-bold hover:text-gray-900 dark:hover:text-white flex items-center gap-2 transition-colors"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Try Again</button></div></div></div>`;
+            }
+
+            // Legal Pages Renderers
+            renderPrivacy() {
+                return `<div class="max-w-3xl mx-auto p-8"><button onclick="app.setView('dashboard')" class="mb-6 text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-2"><i data-lucide="arrow-left"></i> Back</button><h1 class="text-3xl font-bold mb-6 dark:text-white">Privacy Policy</h1><div class="markdown-body text-sm text-gray-600 dark:text-gray-300 space-y-4">
+                <p><strong>Effective Date:</strong> ${new Date().toLocaleDateString()}</p>
+                <p>At Study Guy, we take your privacy seriously. This policy explains how we handle your data.</p>
+                <h3>1. Data Collection</h3>
+                <p>We collect your email address and name for account management. We store your study topics and submission history to track your progress.</p>
+                <h3>2. AI Processing</h3>
+                <p>Your submissions (text, images, audio) are sent to Google Gemini API for grading. We do not use your data to train our own models.</p>
+                <h3>3. Payments</h3>
+                <p>Payments are processed securely via Stripe. We do not store your credit card information.</p>
+                <h3>4. Data Deletion</h3>
+                <p>You may delete your account and all associated data at any time by contacting support@studyguy.app.</p>
+                </div></div>`;
+            }
+
+            renderTerms() {
+                return `<div class="max-w-3xl mx-auto p-8"><button onclick="app.setView('dashboard')" class="mb-6 text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-2"><i data-lucide="arrow-left"></i> Back</button><h1 class="text-3xl font-bold mb-6 dark:text-white">Terms of Service</h1><div class="markdown-body text-sm text-gray-600 dark:text-gray-300 space-y-4">
+                <p>By using Study Guy, you agree to the following terms:</p>
+                <h3>1. Usage License</h3>
+                <p>You are granted a limited license to use the app for personal study purposes. You may not resell or redistribute the service.</p>
+                <h3>2. User Content</h3>
+                <p>You retain ownership of the content you submit. You grant us a license to process this content to provide grading services.</p>
+                <h3>3. Pro Subscription</h3>
+                <p>The Pro plan is a monthly subscription. You can cancel at any time via the Stripe customer portal or by contacting support.</p>
+                <h3>4. Liability</h3>
+                <p>Study Guy is an AI-assisted tool. We are not responsible for academic outcomes or grading inaccuracies.</p>
+                </div></div>`;
+            }
+
+            renderRefund() {
+                return `<div class="max-w-3xl mx-auto p-8"><button onclick="app.setView('dashboard')" class="mb-6 text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-2"><i data-lucide="arrow-left"></i> Back</button><h1 class="text-3xl font-bold mb-6 dark:text-white">Refund Policy</h1><div class="markdown-body text-sm text-gray-600 dark:text-gray-300 space-y-4">
+                <p>We want you to be satisfied with Study Guy.</p>
+                <h3>1. 7-Day Guarantee</h3>
+                <p>If you are unhappy with the Pro service, you may request a full refund within 7 days of your initial purchase.</p>
+                <h3>2. How to Request</h3>
+                <p>Email <strong>support@studyguy.app</strong> with your account email and reason for the refund.</p>
+                <h3>3. Cancellations</h3>
+                <p>Canceling a subscription stops future billing. It does not automatically trigger a refund for the current period unless requested under the 7-day guarantee.</p>
+                </div></div>`;
             }
 
             // ... [Include other helper methods like navHistory, handleFileSelect, deleteTopic, addTopic from previous version] ...
