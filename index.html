@@ -166,6 +166,15 @@
                 <h2 class="text-lg font-bold text-gray-900 dark:text-white">Settings</h2>
             </div>
             <div class="p-6 space-y-5">
+                
+                <!-- Debug Panel (Hidden by default) -->
+                <div id="admin-debug-panel" class="hidden bg-gray-100 dark:bg-gray-800 p-3 rounded-lg text-xs font-mono space-y-1 border border-gray-200 dark:border-gray-700">
+                    <p class="font-bold text-gray-500">DEBUG INFO:</p>
+                    <p>UID: <span id="debug-uid" class="text-blue-500">...</span></p>
+                    <p>Pro: <span id="debug-pro" class="text-red-500">FALSE</span></p>
+                    <p>Subs Found: <span id="debug-subs" class="text-gray-500">0</span></p>
+                </div>
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Your Name</label>
                     <div class="flex gap-2">
@@ -266,13 +275,16 @@
         // ------------------------------------------------------------------
         // PASTE YOUR GEMINI KEY INSIDE THE QUOTES BELOW FOR GITHUB PAGES
         // ------------------------------------------------------------------
-        const INTEGRATED_GEMINI_API_KEY = "AIzaSyBpBq0nGRm8TF_0OPPD1yEXuPIMaKe9tJE"; 
+        const INTEGRATED_GEMINI_API_KEY = ""; 
         
         // Used for fallback environment injection
         const defaultApiKey = "";
         
         // Your Stripe Sandbox Price ID
         const STRIPE_PRICE_ID = "price_1SWjM6IBV0CJ7SHZJPpFHay6";
+        
+        // Admins who can see debug panel
+        const ADMINS = ['logan@aplamon.com', 'wawaerf5@gmail.com'];
 
         const MODES = {
             blurt: { id: 'blurt', label: 'Blurting', icon: 'brain-circuit', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-100 dark:bg-indigo-900/30', theme: 'mode-blurt', desc: 'Write or speak everything you know. Graded on recall.', free: true },
@@ -343,8 +355,18 @@
             async handleUserLogin(user) {
                 this.state.user = user;
                 
+                // Admin Check
+                if(user.email && ADMINS.includes(user.email)) {
+                    const debugPanel = document.getElementById('admin-debug-panel');
+                    if(debugPanel) debugPanel.classList.remove('hidden');
+                }
+
+                // DEBUG PANEL INFO
+                const debugUid = document.getElementById('debug-uid');
+                if(debugUid) debugUid.innerText = user.uid.substring(0,8) + '...';
+                
                 // Update name from Profile if available
-                const { doc, getDoc } = window.firebaseModules;
+                const { doc, getDoc, collection, onSnapshot, query, where } = window.firebaseModules;
                 try {
                     const profileSnap = await getDoc(doc(this.db, 'artifacts', this.appId, 'users', user.uid, 'profile', 'info'));
                     if(profileSnap.exists() && profileSnap.data().name) {
@@ -370,26 +392,37 @@
                     signOutBtn.classList.remove('hidden');
                 }
 
-                // Check Subscription Status via Stripe Extension (More permissive check)
-                const { collection, onSnapshot, query, where } = window.firebaseModules;
-                
-                // Listen for ANY active/trialing/past_due subscription
-                const subQuery = query(
-                    collection(this.db, 'customers', user.uid, 'subscriptions'), 
-                    where('status', 'in', ['active', 'trialing', 'past_due']) 
-                );
-                
-                onSnapshot(subQuery, (snapshot) => {
-                    // console.log("Sub Snapshot size:", snapshot.size); // Debug
-                    if (snapshot.empty) {
-                        // Double check manually if needed, but for now trust listener
-                        this.state.isPro = false;
-                    } else {
-                        this.state.isPro = true;
-                    }
-                    this.updateHeaderPlan();
-                    this.render(); // Re-render with unlocked features
-                }, (err) => console.log("Sub Listener Error:", err));
+                // --- ROBUST SUBSCRIPTION CHECK ---
+                try {
+                    const subCollection = collection(this.db, 'customers', user.uid, 'subscriptions');
+                    
+                    onSnapshot(subCollection, (snap) => {
+                        const debugSubs = document.getElementById('debug-subs');
+                        if(debugSubs) debugSubs.innerText = snap.size;
+                        
+                        let hasActive = false;
+                        snap.forEach(doc => {
+                            const data = doc.data();
+                            if (['active', 'trialing', 'past_due'].includes(data.status)) {
+                                hasActive = true;
+                            }
+                        });
+                        
+                        this.state.isPro = hasActive;
+                        
+                        // DEBUG PANEL UPDATE
+                        const debugPro = document.getElementById('debug-pro');
+                        if(debugPro) {
+                            debugPro.innerText = hasActive ? "TRUE" : "FALSE";
+                            debugPro.className = hasActive ? "text-green-500" : "text-red-500";
+                        }
+                        
+                        this.updateHeaderPlan();
+                        this.render();
+                    });
+                } catch (err) {
+                    console.error("Sub Check Failed:", err);
+                }
 
                 this.setupDataListener();
             }
@@ -419,7 +452,6 @@
                 document.getElementById('signup-btn').classList.remove('bg-gray-100', 'text-gray-900');
                 document.getElementById('auth-email').focus();
                 
-                // Change button action to actually submit register logic
                 const form = document.querySelector('#auth-modal form');
                 form.onsubmit = (e) => { e.preventDefault(); this.handleEmailAuth('register'); };
             }
@@ -473,7 +505,6 @@
                     await setDoc(doc(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'profile', 'info'), { name: name }, { merge: true });
                 }
                 
-                // Update UI immediately
                 document.getElementById('username-display').innerText = name;
                 if(!nameOverride) this.showToast("Name Updated");
             }
@@ -496,14 +527,12 @@
                 btn.disabled = true;
 
                 try {
-                    // 1. Create Checkout Session Doc
                     const docRef = await addDoc(collection(this.db, 'customers', this.state.user.uid, 'checkout_sessions'), {
                         price: STRIPE_PRICE_ID,
                         success_url: window.location.href,
                         cancel_url: window.location.href,
                     });
 
-                    // 2. Wait for Extension to attach 'url'
                     onSnapshot(docRef, (snap) => {
                         const { url, error } = snap.data();
                         if (error) {
@@ -511,7 +540,7 @@
                             btn.disabled = false;
                         }
                         if (url) {
-                            window.location.assign(url); // Redirect to Stripe
+                            window.location.assign(url); 
                         }
                     });
                 } catch (e) {
@@ -828,4 +857,3 @@
     </script>
 </body>
 </html>
-
