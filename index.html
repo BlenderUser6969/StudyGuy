@@ -10,6 +10,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, getDoc, setDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // Import Functions SDK for secure backend calls
         import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
 
         window.firebaseModules = { 
@@ -54,6 +55,10 @@
         .markdown-body ol { list-style-type: decimal; padding-left: 1.5em; margin-bottom: 1em; }
         .markdown-body p { margin-bottom: 0.8em; }
         .markdown-body h1, .markdown-body h2, .markdown-body h3 { font-weight: 700; margin-top: 1em; margin-bottom: 0.5em; }
+        .markdown-body h1 { font-size: 1.75rem; }
+        .markdown-body h2 { font-size: 1.4rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.3em; }
+        .markdown-body h3 { font-size: 1.2rem; }
+        .dark .markdown-body h2 { border-bottom-color: #374151; }
 
         /* Mode Themes */
         .mode-blurt { --primary: #4f46e5; --bg: #eef2ff; --text: #4338ca; }
@@ -221,6 +226,13 @@
                     </button>
                 </div>
                 
+                <div id="key-section">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal API Key</label>
+                    <input type="password" id="api-key-input" placeholder="Paste Key (Optional)" 
+                           class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                    <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Only needed if the integrated key hits limits.</p>
+                </div>
+                
                 <div class="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
                     <button onclick="app.resetToFree()" class="block w-full text-left text-xs text-red-400 hover:text-red-500 underline">Reset Account to Free (Dev Only)</button>
                     <button id="sign-out-btn" onclick="app.handleSignOut()" class="block w-full text-left text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white font-bold hidden">Sign Out</button>
@@ -228,6 +240,7 @@
             </div>
             <div class="p-6 bg-gray-50 dark:bg-gray-800/50 flex justify-end gap-3 border-t border-gray-100 dark:border-gray-800">
                 <button onclick="app.toggleSettings()" class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">Close</button>
+                <button onclick="app.saveSettings()" class="px-4 py-2 bg-gray-900 dark:bg-indigo-600 hover:bg-black dark:hover:bg-indigo-500 text-white rounded-lg font-medium shadow-sm transition-colors">Save Settings</button>
             </div>
         </div>
     </div>
@@ -295,91 +308,422 @@
         // --- Configuration ---
         const STRIPE_PRICE_ID = "price_1SWjM6IBV0CJ7SHZJPpFHay6";
         const ADMINS = ['logan@aplamon.com'];
-        const MODES = { blurt: { id: 'blurt', label: 'Blurting', icon: 'brain-circuit', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-100 dark:bg-indigo-900/30', theme: 'mode-blurt', desc: 'Write or speak everything you know. Graded on recall.', free: true }, art: { id: 'art', label: 'Art & Image', icon: 'palette', color: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-100 dark:bg-sky-900/30', theme: 'mode-art', desc: 'Upload images. Graded on technique, anatomy, etc.', free: false }, essay: { id: 'essay', label: 'Essay', icon: 'file-text', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-900/30', theme: 'mode-essay', desc: 'Upload papers. Graded on grammar and argument.', free: false }, speech: { id: 'speech', label: 'Speech', icon: 'mic', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30', theme: 'mode-speech', desc: 'Record audio. Graded on delivery and tone.', free: false }, presentation: { id: 'presentation', label: 'Presentation', icon: 'monitor-play', color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-900/30', theme: 'mode-presentation', desc: 'Upload PDF slides. Graded on design, flow, and content.', free: false } };
-        function getLetterGrade(score) { if (score >= 97) return 'A+'; if (score >= 93) return 'A'; if (score >= 90) return 'A-'; if (score >= 87) return 'B+'; if (score >= 83) return 'B'; if (score >= 80) return 'B-'; if (score >= 77) return 'C+'; if (score >= 73) return 'C'; if (score >= 70) return 'C-'; if (score >= 67) return 'D+'; if (score >= 63) return 'D'; if (score >= 60) return 'D-'; return 'F'; }
+        
+        const MODES = {
+            blurt: { id: 'blurt', label: 'Blurting', icon: 'brain-circuit', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-100 dark:bg-indigo-900/30', theme: 'mode-blurt', desc: 'Write or speak everything you know. Graded on recall.', free: true },
+            art: { id: 'art', label: 'Art & Image', icon: 'palette', color: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-100 dark:bg-sky-900/30', theme: 'mode-art', desc: 'Upload images. Graded on technique, anatomy, etc.', free: false },
+            essay: { id: 'essay', label: 'Essay', icon: 'file-text', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-900/30', theme: 'mode-essay', desc: 'Upload papers. Graded on grammar and argument.', free: false },
+            speech: { id: 'speech', label: 'Speech', icon: 'mic', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30', theme: 'mode-speech', desc: 'Record audio. Graded on delivery and tone.', free: false },
+            presentation: { id: 'presentation', label: 'Presentation', icon: 'monitor-play', color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-900/30', theme: 'mode-presentation', desc: 'Upload PDF slides. Graded on design, flow, and content.', free: false }
+        };
+
+        function getLetterGrade(score) {
+            if (score >= 97) return 'A+'; if (score >= 93) return 'A'; if (score >= 90) return 'A-';
+            if (score >= 87) return 'B+'; if (score >= 83) return 'B'; if (score >= 80) return 'B-';
+            if (score >= 77) return 'C+'; if (score >= 73) return 'C'; if (score >= 70) return 'C-';
+            if (score >= 67) return 'D+'; if (score >= 63) return 'D'; if (score >= 60) return 'D-'; return 'F';
+        }
 
         class StudyGuyApp {
             constructor() {
-                this.state = { topics: [], currentView: 'dashboard', activeTopicId: null, createMode: 'blurt', isRecording: false, historyIndex: 0, tempFile: null, theme: localStorage.getItem('studyguy_theme') || 'light', user: null, isPro: false, customName: localStorage.getItem('studyguy_name') };
+                this.state = {
+                    topics: [], currentView: 'dashboard', activeTopicId: null, createMode: 'blurt', isRecording: false, historyIndex: 0, tempFile: null,
+                    theme: localStorage.getItem('studyguy_theme') || 'light', user: null, isPro: false, customName: localStorage.getItem('studyguy_name')
+                };
                 this.container = document.getElementById('app-container');
                 this.init();
             }
-            async init() { this.applyTheme(this.state.theme); const checkModules = setInterval(async () => { if (window.firebaseModules) { clearInterval(checkModules); await this.initFirebase(); lucide.createIcons(); } }, 100); }
+
+            async init() {
+                this.applyTheme(this.state.theme);
+                const checkModules = setInterval(async () => {
+                    if (window.firebaseModules) {
+                        clearInterval(checkModules);
+                        await this.initFirebase();
+                        lucide.createIcons();
+                    }
+                }, 100);
+            }
+
             async initFirebase() {
                 try {
                     const { initializeApp, getAuth, onAuthStateChanged, signInAnonymously, getFirestore, getFunctions } = window.firebaseModules;
-                    // Config
-                    const firebaseConfig = { apiKey: "AIzaSyCYAGvnQW9XdsFoz-AGz63Zl5trW7F2wDk", authDomain: "study-guy.firebaseapp.com", projectId: "study-guy", storageBucket: "study-guy.firebasestorage.app", messagingSenderId: "256814356458", appId: "1:256814356458:web:0df9a4f8d4590cd7338493", measurementId: "G-9YCQ1LE274" };
+                    
+                    const firebaseConfig = {
+                        apiKey: "AIzaSyCYAGvnQW9XdsFoz-AGz63Zl5trW7F2wDk",
+                        authDomain: "study-guy.firebaseapp.com",
+                        projectId: "study-guy",
+                        storageBucket: "study-guy.firebasestorage.app",
+                        messagingSenderId: "256814356458",
+                        appId: "1:256814356458:web:0df9a4f8d4590cd7338493",
+                        measurementId: "G-9YCQ1LE274"
+                    };
+
                     const app = initializeApp(firebaseConfig);
                     this.auth = getAuth(app);
                     this.db = getFirestore(app);
                     this.functions = getFunctions(app, "us-central1"); 
                     this.appId = 'study-guy-live'; 
-                    onAuthStateChanged(this.auth, async (user) => { if (user) { this.handleUserLogin(user); } else { await signInAnonymously(this.auth); } });
-                } catch (error) { console.error("Firebase Init Error:", error); this.showToast("Offline Mode"); this.render(); }
+
+                    onAuthStateChanged(this.auth, async (user) => {
+                        if (user) { this.handleUserLogin(user); } else { await signInAnonymously(this.auth); }
+                    });
+                } catch (error) {
+                    console.error("Firebase Init Error:", error);
+                    this.showToast("Offline Mode");
+                    this.render();
+                }
             }
+
             async handleUserLogin(user) {
                 this.state.user = user;
+                
                 // Admin Check
-                if(user.email && ADMINS.includes(user.email)) { const debugPanel = document.getElementById('admin-debug-panel'); if(debugPanel) debugPanel.classList.remove('hidden'); }
-                // Debug Info
-                const debugUid = document.getElementById('debug-uid'); if(debugUid) debugUid.innerText = user.uid.substring(0,8) + '...';
-                // Profile Name Fetch
+                if(user.email && ADMINS.includes(user.email)) {
+                    const debugPanel = document.getElementById('admin-debug-panel');
+                    if(debugPanel) debugPanel.classList.remove('hidden');
+                }
+
+                // DEBUG PANEL INFO
+                const debugUid = document.getElementById('debug-uid');
+                if(debugUid) debugUid.innerText = user.uid.substring(0,8) + '...';
+                
+                // Update name from Profile if available
                 const { doc, getDoc, collection, onSnapshot, query, where } = window.firebaseModules;
-                try { const profileSnap = await getDoc(doc(this.db, 'artifacts', this.appId, 'users', user.uid, 'profile', 'info')); if(profileSnap.exists() && profileSnap.data().name) { this.state.customName = profileSnap.data().name; } } catch(e) { console.log("Profile fetch error", e); }
-                // UI Updates
-                const statusDot = document.getElementById('auth-dot'); const userLabel = document.getElementById('username-display'); const authBtn = document.getElementById('auth-btn'); const signOutBtn = document.getElementById('sign-out-btn');
+                try {
+                    const profileSnap = await getDoc(doc(this.db, 'artifacts', this.appId, 'users', user.uid, 'profile', 'info'));
+                    if(profileSnap.exists() && profileSnap.data().name) {
+                        this.state.customName = profileSnap.data().name;
+                    }
+                } catch(e) { console.log("Profile fetch error", e); }
+
+                const statusDot = document.getElementById('auth-dot');
+                const userLabel = document.getElementById('username-display');
+                const authBtn = document.getElementById('auth-btn');
+                const signOutBtn = document.getElementById('sign-out-btn');
+                
                 if(statusDot) statusDot.className = "w-2 h-2 rounded-full bg-emerald-500";
-                if (user.isAnonymous) { userLabel.innerText = this.state.customName || "Guest"; authBtn.classList.remove('hidden'); signOutBtn.classList.add('hidden'); } 
-                else { const name = this.state.customName || user.displayName || user.email?.split('@')[0]; userLabel.innerText = name; authBtn.classList.add('hidden'); signOutBtn.classList.remove('hidden'); }
-                // Subscription Check
+                
+                if (user.isAnonymous) {
+                    userLabel.innerText = this.state.customName || "Guest";
+                    authBtn.classList.remove('hidden');
+                    signOutBtn.classList.add('hidden');
+                } else {
+                    const name = this.state.customName || user.displayName || user.email?.split('@')[0];
+                    userLabel.innerText = name;
+                    authBtn.classList.add('hidden');
+                    signOutBtn.classList.remove('hidden');
+                }
+
+                // --- ROBUST SUBSCRIPTION CHECK ---
                 try {
                     const subCollection = collection(this.db, 'customers', user.uid, 'subscriptions');
+                    
                     onSnapshot(subCollection, (snap) => {
-                        const debugSubs = document.getElementById('debug-subs'); if(debugSubs) debugSubs.innerText = snap.size;
-                        let hasActive = false; snap.forEach(doc => { const data = doc.data(); if (['active', 'trialing', 'past_due'].includes(data.status)) hasActive = true; });
+                        const debugSubs = document.getElementById('debug-subs');
+                        if(debugSubs) debugSubs.innerText = snap.size;
+                        
+                        let hasActive = false;
+                        snap.forEach(doc => {
+                            const data = doc.data();
+                            if (['active', 'trialing', 'past_due'].includes(data.status)) {
+                                hasActive = true;
+                            }
+                        });
+                        
                         this.state.isPro = hasActive;
-                        const debugPro = document.getElementById('debug-pro'); if(debugPro) { debugPro.innerText = hasActive ? "TRUE" : "FALSE"; debugPro.className = hasActive ? "text-green-500" : "text-red-500"; }
-                        this.updateHeaderPlan(); this.render();
+                        
+                        // DEBUG PANEL UPDATE
+                        const debugPro = document.getElementById('debug-pro');
+                        if(debugPro) {
+                            debugPro.innerText = hasActive ? "TRUE" : "FALSE";
+                            debugPro.className = hasActive ? "text-green-500" : "text-red-500";
+                        }
+                        
+                        this.updateHeaderPlan();
+                        this.render();
                     });
-                } catch (err) { console.error("Sub Check Failed:", err); }
+                } catch (err) {
+                    console.error("Sub Check Failed:", err);
+                }
+
                 this.setupDataListener();
             }
+
             setupDataListener() {
                 if (!this.state.user) return;
                 const { collection, onSnapshot, query } = window.firebaseModules;
                 const q = query(collection(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'topics'));
-                onSnapshot(q, (snapshot) => { this.state.topics = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); this.render(); }, (error) => console.error("Data Fetch Error:", error));
+                onSnapshot(q, (snapshot) => {
+                    this.state.topics = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                    this.render();
+                }, (error) => console.error("Data Fetch Error:", error));
             }
-            // Auth
-            toggleAuthModal() { const modal = document.getElementById('auth-modal'); const errorMsg = document.getElementById('auth-error-msg'); if(errorMsg) errorMsg.classList.add('hidden'); modal.classList.toggle('hidden'); modal.classList.toggle('flex'); }
-            showRegisterFields() { document.getElementById('name-field').classList.remove('hidden'); document.getElementById('login-btn').classList.remove('bg-indigo-600', 'text-white'); document.getElementById('login-btn').classList.add('bg-gray-100', 'text-gray-900', 'dark:bg-gray-800', 'dark:text-gray-200'); document.getElementById('signup-btn').classList.remove('bg-gray-100', 'text-gray-900', 'dark:bg-gray-800', 'dark:text-gray-200'); document.getElementById('signup-btn').classList.add('bg-indigo-600', 'text-white'); document.getElementById('auth-email').focus(); const form = document.querySelector('#auth-modal form'); form.onsubmit = (e) => { e.preventDefault(); this.handleEmailAuth('register'); }; }
-            showAuthError(msg, isDomain) { const el = document.getElementById('auth-error-msg'); el.classList.remove('hidden'); if (isDomain) el.innerHTML = `<strong>Domain Error</strong><br>Add this domain to Firebase Console:<br><code>${window.location.hostname}</code>`; else el.innerText = msg; }
-            async handleGoogleLogin() { const { GoogleAuthProvider, signInWithPopup } = window.firebaseModules; try { await signInWithPopup(this.auth, new GoogleAuthProvider()); this.toggleAuthModal(); } catch (e) { console.error(e); this.showAuthError(e.message, e.code === 'auth/unauthorized-domain'); } }
-            async handleEmailAuth(type) { const { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } = window.firebaseModules; const email = document.getElementById('auth-email').value; const pass = document.getElementById('auth-password').value; const nameInput = document.getElementById('auth-name').value; const tosCheck = document.getElementById('tos-check'); if (type === 'register') { if (!tosCheck.checked) { this.showAuthError("You must agree to the Terms of Service"); return; } } if(!email || !pass) return this.showAuthError("Enter email and password"); try { if (type === 'register') { const cred = await createUserWithEmailAndPassword(this.auth, email, pass); if(nameInput) { await updateProfile(cred.user, { displayName: nameInput }); this.saveName(nameInput); } } else await signInWithEmailAndPassword(this.auth, email, pass); this.toggleAuthModal(); } catch (e) { console.error(e); this.showAuthError(e.message, e.code === 'auth/unauthorized-domain'); } }
-            async handleSignOut() { await window.firebaseModules.signOut(this.auth); this.toggleSettings(); }
-            async saveName(nameOverride) { const name = nameOverride || document.getElementById('display-name-input').value; if(!name) return; this.state.customName = name; localStorage.setItem('studyguy_name', name); if(this.state.user) { const { doc, setDoc } = window.firebaseModules; await setDoc(doc(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'profile', 'info'), { name: name }, { merge: true }); } document.getElementById('username-display').innerText = name; if(!nameOverride) this.showToast("Name Updated"); }
-            // Payments
-            triggerUpgrade() { if (this.state.user && this.state.user.isAnonymous) { this.toggleAuthModal(); this.showToast("Please create an account first"); return; } document.getElementById('upgrade-modal').classList.remove('hidden'); document.getElementById('upgrade-modal').classList.add('flex'); }
-            async startStripeCheckout() { const { addDoc, collection, onSnapshot } = window.firebaseModules; const btn = document.querySelector('#upgrade-modal button.bg-gradient-to-r'); btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Redirecting...`; btn.disabled = true; try { const docRef = await addDoc(collection(this.db, 'customers', this.state.user.uid, 'checkout_sessions'), { price: STRIPE_PRICE_ID, success_url: window.location.href, cancel_url: window.location.href, }); onSnapshot(docRef, (snap) => { const { url, error } = snap.data(); if (error) { alert(`An error occurred: ${error.message}`); btn.disabled = false; } if (url) { window.location.assign(url); } }); } catch (e) { console.error(e); alert("Payment Init Failed. Check console."); } }
-            async resetToFree() { this.state.isPro = false; const { doc, setDoc } = window.firebaseModules; await setDoc(doc(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'profile', 'status'), { isPro: false }, { merge: true }); this.updateHeaderPlan(); this.toggleSettings(); this.render(); this.showToast("Reset to Free"); }
-            updateHeaderPlan() { const badge = document.getElementById('plan-badge'); const upgradeBtn = document.getElementById('upgrade-btn'); if (this.state.isPro) { badge.innerText = "PRO"; badge.className = "text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-sm"; upgradeBtn.classList.add('hidden'); } else { badge.innerText = "FREE PLAN"; badge.className = "text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"; upgradeBtn.classList.remove('hidden'); } }
-            
-            // AI - Using Cloud Function
-            async submitAssessment() { const topic = this.state.topics.find(t => t.id === this.state.activeTopicId); const mode = topic.mode; let userContent = ""; if (mode === 'blurt') userContent = document.getElementById('blurt-input').value; else if (mode === 'essay') userContent = document.getElementById('essay-input').value; else if (mode === 'art' || mode === 'presentation') { if(!this.state.tempFile) return this.showToast("Upload a file!"); userContent = "(File Uploaded)"; } else if (mode === 'speech') { if(this.state.audioChunks.length === 0) return this.showToast("Record audio!"); userContent = "(Audio Recorded)"; } if (!userContent) return this.showToast("Input required"); this.setLoading(true); try { const { httpsCallable } = window.firebaseModules; const gradeSubmission = httpsCallable(this.functions, 'aiTutorAgent'); const result = await gradeSubmission({ action: 'grade', topic: topic, userContent: userContent, mode: mode }); const aiResult = result.data; if(!aiResult.letter_grade) aiResult.letter_grade = getLetterGrade(aiResult.score); const newHistoryItem = { id: crypto.randomUUID(), date: new Date().toISOString(), text: userContent, result: aiResult, mode: mode }; const { updateDoc, doc } = window.firebaseModules; await updateDoc(doc(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'topics', topic.id), { history: [newHistoryItem, ...topic.history] }); this.setView('result', topic.id); } catch (err) { console.error(err); this.showToast("Error: " + err.message); } finally { this.setLoading(false); } }
-            async generateStudyGuide() { const topic = this.state.topics.find(t => t.id === this.state.activeTopicId); const modal = document.getElementById('guide-modal'); const content = document.getElementById('guide-content'); modal.classList.remove('hidden'); modal.classList.add('flex'); content.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-gray-400 space-y-4"><i data-lucide="loader-2" class="w-8 h-8 animate-spin text-indigo-500"></i><p>Generating cheat sheet...</p></div>`; lucide.createIcons(); try { const { httpsCallable } = window.firebaseModules; const generateGuide = httpsCallable(this.functions, 'aiTutorAgent'); const result = await generateGuide({ action: 'guide', topic: topic }); content.innerHTML = marked.parse(result.data.markdown); } catch (err) { content.innerHTML = `<div class="text-center text-red-500"><p>Error generating guide.</p><p class="text-xs mt-2">${err.message}</p></div>`; } }
 
-            // UI & Utils
+            // --- AUTH ---
+            toggleAuthModal() {
+                const modal = document.getElementById('auth-modal');
+                const errorMsg = document.getElementById('auth-error-msg');
+                if(errorMsg) errorMsg.classList.add('hidden');
+                modal.classList.toggle('hidden');
+                modal.classList.toggle('flex');
+            }
+            
+            showRegisterFields() {
+                document.getElementById('name-field').classList.remove('hidden');
+                document.getElementById('login-btn').classList.remove('bg-indigo-600', 'text-white');
+                document.getElementById('login-btn').classList.add('bg-gray-100', 'text-gray-900', 'dark:bg-gray-800', 'dark:text-gray-200');
+                
+                document.getElementById('signup-btn').classList.remove('bg-gray-100', 'text-gray-900', 'dark:bg-gray-800', 'dark:text-gray-200');
+                document.getElementById('signup-btn').classList.add('bg-indigo-600', 'text-white');
+                
+                document.getElementById('auth-email').focus();
+                
+                const form = document.querySelector('#auth-modal form');
+                form.onsubmit = (e) => { e.preventDefault(); this.handleEmailAuth('register'); };
+            }
+
+            showAuthError(msg, isDomain) {
+                const el = document.getElementById('auth-error-msg');
+                el.classList.remove('hidden');
+                if (isDomain) el.innerHTML = `<strong>Domain Error</strong><br>Add this domain to Firebase Console:<br><code>${window.location.hostname}</code>`;
+                else el.innerText = msg;
+            }
+
+            async handleGoogleLogin() {
+                const { GoogleAuthProvider, signInWithPopup } = window.firebaseModules;
+                try { await signInWithPopup(this.auth, new GoogleAuthProvider()); this.toggleAuthModal(); }
+                catch (e) { console.error(e); this.showAuthError(e.message, e.code === 'auth/unauthorized-domain'); }
+            }
+
+            async handleEmailAuth(type) {
+                const { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } = window.firebaseModules;
+                const email = document.getElementById('auth-email').value;
+                const pass = document.getElementById('auth-password').value;
+                const nameInput = document.getElementById('auth-name').value;
+                const tosCheck = document.getElementById('tos-check');
+
+                if (type === 'register') {
+                    if (!tosCheck.checked) {
+                        this.showAuthError("You must agree to the Terms of Service");
+                        return;
+                    }
+                }
+                
+                if(!email || !pass) return this.showAuthError("Enter email and password");
+                try {
+                    if (type === 'register') {
+                        const cred = await createUserWithEmailAndPassword(this.auth, email, pass);
+                        if(nameInput) {
+                            await updateProfile(cred.user, { displayName: nameInput });
+                            this.saveName(nameInput); 
+                        }
+                    }
+                    else await signInWithEmailAndPassword(this.auth, email, pass);
+                    this.toggleAuthModal();
+                } catch (e) { console.error(e); this.showAuthError(e.message, e.code === 'auth/unauthorized-domain'); }
+            }
+
+            async handleSignOut() {
+                await window.firebaseModules.signOut(this.auth);
+                this.toggleSettings();
+            }
+            
+            async saveName(nameOverride) {
+                const name = nameOverride || document.getElementById('display-name-input').value;
+                if(!name) return;
+                this.state.customName = name;
+                localStorage.setItem('studyguy_name', name);
+                
+                if(this.state.user) {
+                    const { doc, setDoc } = window.firebaseModules;
+                    await setDoc(doc(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'profile', 'info'), { name: name }, { merge: true });
+                }
+                
+                document.getElementById('username-display').innerText = name;
+                if(!nameOverride) this.showToast("Name Updated");
+            }
+
+            // --- PAYMENTS (REAL STRIPE) ---
+            triggerUpgrade() {
+                if (this.state.user && this.state.user.isAnonymous) {
+                    this.toggleAuthModal();
+                    this.showToast("Please create an account first");
+                    return;
+                }
+                document.getElementById('upgrade-modal').classList.remove('hidden');
+                document.getElementById('upgrade-modal').classList.add('flex');
+            }
+
+            async startStripeCheckout() {
+                const { addDoc, collection, onSnapshot } = window.firebaseModules;
+                const btn = document.querySelector('#upgrade-modal button.bg-gradient-to-r');
+                btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Redirecting...`;
+                btn.disabled = true;
+
+                try {
+                    const docRef = await addDoc(collection(this.db, 'customers', this.state.user.uid, 'checkout_sessions'), {
+                        price: STRIPE_PRICE_ID,
+                        success_url: window.location.href,
+                        cancel_url: window.location.href,
+                    });
+
+                    onSnapshot(docRef, (snap) => {
+                        const { url, error } = snap.data();
+                        if (error) {
+                            alert(`An error occurred: ${error.message}`);
+                            btn.disabled = false;
+                        }
+                        if (url) {
+                            window.location.assign(url); 
+                        }
+                    });
+                } catch (e) {
+                    console.error(e);
+                    alert("Payment Init Failed. Check console.");
+                }
+            }
+
+            async resetToFree() {
+                this.state.isPro = false;
+                const { doc, setDoc } = window.firebaseModules;
+                await setDoc(doc(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'profile', 'status'), { isPro: false }, { merge: true });
+                this.updateHeaderPlan();
+                this.toggleSettings();
+                this.render();
+                this.showToast("Reset to Free");
+            }
+
+            updateHeaderPlan() {
+                const badge = document.getElementById('plan-badge');
+                const upgradeBtn = document.getElementById('upgrade-btn');
+                if (this.state.isPro) {
+                    badge.innerText = "PRO";
+                    badge.className = "text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-sm";
+                    upgradeBtn.classList.add('hidden');
+                } else {
+                    badge.innerText = "FREE PLAN";
+                    badge.className = "text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400";
+                    upgradeBtn.classList.remove('hidden');
+                }
+            }
+
+            // --- AI CORE (Server Side) ---
+            async submitAssessment() {
+                const topic = this.state.topics.find(t => t.id === this.state.activeTopicId);
+                const mode = topic.mode;
+                let userContent = "";
+                
+                // Gathering input logic (same as before)
+                if (mode === 'blurt') userContent = document.getElementById('blurt-input').value;
+                else if (mode === 'essay') userContent = document.getElementById('essay-input').value;
+                else if (mode === 'art' || mode === 'presentation') {
+                     if(!this.state.tempFile) return this.showToast("Upload a file!");
+                     userContent = "(File Uploaded)";
+                } else if (mode === 'speech') {
+                     if(this.state.audioChunks.length === 0) return this.showToast("Record audio!");
+                     userContent = "(Audio Recorded)";
+                }
+
+                if (!userContent) return this.showToast("Input required");
+                this.setLoading(true);
+
+                try {
+                    const { httpsCallable } = window.firebaseModules;
+                    const gradeSubmission = httpsCallable(this.functions, 'aiTutorAgent');
+                    
+                    const result = await gradeSubmission({
+                        action: 'grade',
+                        topic: topic,
+                        userContent: userContent,
+                        mode: mode
+                        // Note: For real media, you'd send base64 or Storage URL here
+                    });
+
+                    const aiResult = result.data;
+                    if(!aiResult.letter_grade) aiResult.letter_grade = getLetterGrade(aiResult.score);
+
+                    // Save Result
+                    const newHistoryItem = {
+                        id: crypto.randomUUID(),
+                        date: new Date().toISOString(),
+                        text: userContent,
+                        result: aiResult,
+                        mode: mode
+                    };
+
+                    const { updateDoc, doc } = window.firebaseModules;
+                    await updateDoc(doc(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'topics', topic.id), {
+                        history: [newHistoryItem, ...topic.history]
+                    });
+
+                    this.setView('result', topic.id);
+
+                } catch (err) {
+                    console.error(err);
+                    this.showToast("Error: " + err.message);
+                } finally {
+                    this.setLoading(false);
+                }
+            }
+
+            // 2. Study Guide Feature (Server Side)
+            async generateStudyGuide() {
+                const topic = this.state.topics.find(t => t.id === this.state.activeTopicId);
+                const modal = document.getElementById('guide-modal');
+                const content = document.getElementById('guide-content');
+                
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                content.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-gray-400 space-y-4"><i data-lucide="loader-2" class="w-8 h-8 animate-spin text-indigo-500"></i><p>Generating cheat sheet...</p></div>`;
+                lucide.createIcons();
+
+                try {
+                    const { httpsCallable } = window.firebaseModules;
+                    const generateGuide = httpsCallable(this.functions, 'aiTutorAgent');
+
+                    const result = await generateGuide({
+                        action: 'guide',
+                        topic: topic
+                    });
+
+                    content.innerHTML = marked.parse(result.data.markdown);
+
+                } catch (err) {
+                    content.innerHTML = `<div class="text-center text-red-500"><p>Error generating guide.</p><p class="text-xs mt-2">${err.message}</p></div>`;
+                }
+            }
+
+            // --- UI HELPERS ---
             toggleTheme() { this.state.theme = this.state.theme === 'light' ? 'dark' : 'light'; localStorage.setItem('studyguy_theme', this.state.theme); this.applyTheme(this.state.theme); }
             applyTheme(theme) { const html = document.documentElement; if (theme === 'dark') html.classList.add('dark'); else html.classList.remove('dark'); }
             toggleSettings() { document.getElementById('settings-modal').classList.toggle('hidden'); document.getElementById('settings-modal').classList.toggle('flex'); }
             saveSettings() { this.toggleSettings(); }
             showToast(msg) { const toast = document.getElementById('toast'); document.getElementById('toast-msg').innerText = msg; toast.classList.remove('translate-y-20', 'opacity-0'); setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000); }
             setLoading(isLoading) { const btn = document.getElementById('submit-btn'); if(btn) { btn.disabled = isLoading; document.getElementById('loading-spinner').classList.toggle('hidden', !isLoading); document.getElementById('btn-text').classList.toggle('hidden', isLoading); } }
-            setView(view, topicId = null) { this.state.currentView = view; this.state.activeTopicId = topicId; this.state.historyIndex = 0; this.state.isRecording = false; this.state.tempFile = null; this.state.audioChunks = []; if(this.state.mediaRecorder?.state !== 'inactive') this.state.mediaRecorder.stop(); this.render(); }
+            
+            // --- RENDERERS ---
+            
+            // FIX: Safely stop media recorder if exists
+            setView(view, topicId = null) { 
+                this.state.currentView = view; 
+                this.state.activeTopicId = topicId; 
+                this.state.historyIndex = 0; 
+                this.state.isRecording = false; 
+                this.state.tempFile = null; 
+                this.state.audioChunks = []; 
+                
+                // Safe check for mediaRecorder
+                if(this.state.mediaRecorder && this.state.mediaRecorder.state !== 'inactive') {
+                    this.state.mediaRecorder.stop();
+                }
+                
+                this.render(); 
+            }
+
             render() { this.container.innerHTML = ''; if (this.state.currentView === 'dashboard') this.container.innerHTML = this.renderDashboard(); else if (this.state.currentView === 'create') this.container.innerHTML = this.renderCreate(); else if (this.state.currentView === 'session') this.container.innerHTML = this.renderSession(); else if (this.state.currentView === 'result') this.container.innerHTML = this.renderResult(); else if (this.state.currentView === 'privacy') this.container.innerHTML = this.renderPrivacy(); else if (this.state.currentView === 'terms') this.container.innerHTML = this.renderTerms(); else if (this.state.currentView === 'refund') this.container.innerHTML = this.renderRefund(); lucide.createIcons(); }
             
-            renderDashboard() { /* ... same dashboard code ... */ 
+            renderDashboard() {
                 const topicsList = this.state.topics.map(topic => {
                     const modeConfig = MODES[topic.mode] || MODES.blurt;
                     const lastResult = topic.history && topic.history.length ? topic.history[0].result : null;
@@ -422,7 +766,8 @@
 
                 return `<div class="h-full flex flex-col max-w-5xl mx-auto w-full bg-white dark:bg-gray-900 shadow-2xl md:my-6 md:rounded-3xl overflow-hidden border border-gray-200 dark:border-gray-800 animate-fade-in"><div class="${modeConfig.bg} px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center shrink-0"><div><button onclick="app.setView('dashboard')" class="text-xs font-bold ${modeConfig.color} opacity-70 hover:opacity-100 uppercase tracking-wide mb-1 flex items-center gap-1"><i data-lucide="chevron-left" class="w-3 h-3"></i> Back</button><div class="flex items-center gap-2"><i data-lucide="${modeConfig.icon}" class="w-5 h-5 ${modeConfig.color}"></i><h2 class="text-lg font-bold text-gray-900 dark:text-white">${topic.title}</h2></div></div><div class="flex gap-2"><button onclick="app.generateStudyGuide()" class="text-sm font-bold bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 px-4 py-2 rounded-lg transition-colors flex items-center gap-1"><i data-lucide="sparkles" class="w-3 h-3"></i> Study Guide</button><button onclick="app.setView('result', '${topic.id}')" class="text-sm font-bold bg-white/50 hover:bg-white dark:bg-black/20 dark:hover:bg-black/40 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg transition-colors ${topic.history && topic.history.length ? '' : 'hidden'}">History</button></div></div><div class="flex-1 relative ${topic.mode}">${interactionArea}</div><div class="p-5 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex justify-end items-center gap-4 shrink-0 z-10"><button id="submit-btn" onclick="app.submitAssessment()" class="bg-gray-900 dark:bg-indigo-600 hover:bg-black dark:hover:bg-indigo-500 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center gap-2 min-w-[160px] justify-center"><span id="btn-text">Grade My Work</span><i id="loading-spinner" data-lucide="loader-2" class="w-5 h-5 animate-spin hidden"></i></button></div></div>`;
             }
-            renderResult() { /* ... same result code ... */
+
+            renderResult() {
                 const topic = this.state.topics.find(t => t.id === this.state.activeTopicId);
                 if (!topic || !topic.history || !topic.history.length) { this.setView('session', topic?.id); return; }
                 const attempt = topic.history[this.state.historyIndex];
@@ -436,6 +781,8 @@
 
                 return `<div class="max-w-4xl mx-auto p-4 md:p-8 pb-20 animate-fade-in"><div class="flex items-center justify-between mb-6"><button onclick="app.setView('dashboard')" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 font-medium"><i data-lucide="arrow-left" class="w-4 h-4"></i> Dashboard</button><div class="flex items-center bg-white dark:bg-gray-800 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 p-1"><button onclick="app.navHistory(1)" ${!hasPrev ? 'disabled' : ''} class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors"><i data-lucide="chevron-left" class="w-4 h-4 text-gray-600 dark:text-gray-300"></i></button><span class="text-xs font-bold px-3 text-gray-500 dark:text-gray-400 min-w-[140px] text-center">${new Date(attempt.date).toLocaleDateString()} <span class="opacity-50">|</span> ${new Date(attempt.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span><button onclick="app.navHistory(-1)" ${!hasNext ? 'disabled' : ''} class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors"><i data-lucide="chevron-right" class="w-4 h-4 text-gray-600 dark:text-gray-300"></i></button></div></div><div class="bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden mb-8"><div class="bg-gray-900 dark:bg-gray-800 p-8 text-white flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden"><div class="absolute top-0 right-0 opacity-10 transform translate-x-10 -translate-y-10"><i data-lucide="${modeConfig.icon}" class="w-64 h-64"></i></div><div class="z-10 text-center md:text-left"><h2 class="text-3xl font-bold mb-2">Assessment Complete</h2><p class="text-gray-400 mb-6 max-w-sm">Results for <span class="text-white font-semibold">${topic.title}</span>.</p></div><div class="flex items-center gap-6 z-10 bg-white/5 p-4 rounded-2xl backdrop-blur-sm border border-white/10"><div class="text-center px-4 border-r border-white/10"><span class="block text-6xl font-black ${gradeColorClass}" style="text-shadow: 0 0 20px rgba(0,0,0,0.5);">${letterGrade}</span></div><div class="text-center px-2"><span class="block text-3xl font-bold text-white">${result.score}</span></div></div></div><div class="p-8 grid md:grid-cols-2 gap-8"><div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i data-lucide="thumbs-up" class="w-4 h-4 text-emerald-500"></i> Strengths</h3><div class="markdown-body text-sm text-gray-700 dark:text-gray-300 bg-emerald-50/50 dark:bg-emerald-900/10 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/20">${marked.parse(result.positive_feedback)}</div></div><div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i data-lucide="wrench" class="w-4 h-4 text-rose-500"></i> Improvements</h3><div class="markdown-body text-sm text-gray-700 dark:text-gray-300 bg-rose-50/50 dark:bg-rose-900/10 p-4 rounded-xl border border-rose-100 dark:border-rose-900/20">${marked.parse(result.constructive_feedback)}</div></div></div>${result.missing_concepts && result.missing_concepts.length ? `<div class="border-t border-gray-100 dark:border-gray-800 p-8 bg-gray-50 dark:bg-gray-800/50"><h3 class="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-4">Key Concepts to Review</h3><div class="flex flex-wrap gap-2">${result.missing_concepts.map(c => `<span class="px-3 py-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-md text-sm font-medium shadow-sm">${c}</span>`).join('')}</div></div>` : ''}<div class="p-4 bg-gray-100 dark:bg-gray-800 flex justify-center"><button onclick="app.setView('session', '${topic.id}')" class="text-gray-600 dark:text-gray-400 font-bold hover:text-gray-900 dark:hover:text-white flex items-center gap-2 transition-colors"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Try Again</button></div></div></div>`;
             }
+
+            // Legal Pages Renderers
             renderPrivacy() { return `<div class="max-w-3xl mx-auto p-8 animate-fade-in"><button onclick="app.setView('dashboard')" class="mb-6 text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 font-medium"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Dashboard</button><h1 class="text-3xl font-bold mb-6 dark:text-white tracking-tight">Privacy Policy</h1><div class="markdown-body text-sm text-gray-600 dark:text-gray-300 space-y-4 bg-white dark:bg-gray-900 p-8 rounded-2xl border border-gray-100 dark:border-gray-800"><p><strong>Last updated: 2025/11/24</strong></p><p>Study Guy (“we,” “us,” or “our”) is committed to protecting your privacy. This Privacy Policy explains what personal data we collect, how we use it, and your rights under the EU General Data Protection Regulation (GDPR).</p><p>By using Study Guy, you acknowledge this Privacy Policy.</p><h3>1. Data We Collect</h3><p>We collect the following personal data:</p><ul><li><strong>Account Information:</strong> Name, Email address, Password (securely hashed).</li><li><strong>Automatically Collected Data:</strong> IP address, Device info, Log data.</li><li><strong>Payment Information:</strong> Processed by Stripe. We do not store full credit card numbers.</li><li><strong>User-Generated Content:</strong> Study topics, notes, images, text, etc.</li></ul><h3>2. How We Use Your Data</h3><p>We use your data to create accounts, provide features, record subscriptions, ensure security, and improve performance. We do not sell your data.</p><h3>3. Cookies & Analytics</h3><p>We use essential cookies for login sessions and security. We do not use cookies for advertising.</p><h3>4. Data Retention</h3><p>We retain personal data only as long as necessary to maintain your account and comply with legal obligations.</p><h3>5. Sharing Your Data</h3><p>We share data with trusted providers like Stripe (payments) and hosting providers (Vercel/Google) solely to operate the service.</p><h3>6. Children & Minors</h3><p>Users aged 13–17 require parental permission. We do not knowingly collect data from children under 13.</p><h3>7. Your GDPR Rights</h3><p>EU/EEA users have rights to access, rectify, erase, restrict processing, and portability of their data. Contact us to exercise these rights.</p><h3>8. Data Security</h3><p>We use HTTPS, hashed passwords, and secure servers. No system is perfectly secure, but we work to keep data safe.</p><h3>9. Contact Information</h3><p>For privacy questions or deletion requests: <strong>logan@aplamon.com</strong></p></div></div>`; }
             renderTerms() { return `<div class="max-w-3xl mx-auto p-8 animate-fade-in"><button onclick="app.setView('dashboard')" class="mb-6 text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 font-medium"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Dashboard</button><h1 class="text-3xl font-bold mb-6 dark:text-white tracking-tight">Terms of Service</h1><div class="markdown-body text-sm text-gray-600 dark:text-gray-300 space-y-4 bg-white dark:bg-gray-900 p-8 rounded-2xl border border-gray-100 dark:border-gray-800"><p><strong>Last updated: 2025/11/24</strong></p><p>Welcome to Study Guy. By creating an account, you agree to these Terms. If you do not agree, do not use the service.</p><h3>1. Eligibility</h3><p>You must be 13 or older. Under 18s require parental permission.</p><h3>2. Accounts</h3><p>You must provide accurate info. You are responsible for your password security and account activity.</p><h3>3. Subscription & Billing</h3><p>We offer a paid subscription unlocking full tools. Billing is processed by Stripe. You can cancel anytime; access remains until the billing period ends.</p><h3>4. Refunds</h3><p>Refunds are offered only when required by law or for valid reasons at our discretion. See Refund Policy.</p><h3>5. Use of Service</h3><p>Do not break laws, share accounts, or abuse the platform. We may suspend violators.</p><h3>6. AI Tools</h3><p>AI outputs may be inaccurate. You use generated content at your own risk.</p><h3>7. Liability</h3><p>Study Guy is provided "as is". We are not liable for data loss, downtime, or academic outcomes.</p><h3>8. Changes</h3><p>We may update these Terms. Continued use means acceptance.</p><h3>9. Contact</h3><p>Questions? Contact: <strong>logan@aplamon.com</strong></p></div></div>`; }
             renderRefund() { return `<div class="max-w-3xl mx-auto p-8 animate-fade-in"><button onclick="app.setView('dashboard')" class="mb-6 text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 font-medium"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Dashboard</button><h1 class="text-3xl font-bold mb-6 dark:text-white tracking-tight">Refund Policy</h1><div class="markdown-body text-sm text-gray-600 dark:text-gray-300 space-y-4 bg-white dark:bg-gray-900 p-8 rounded-2xl border border-gray-100 dark:border-gray-800"><p><strong>Last updated: 2025/11/24</strong></p><p>Thank you for using Study Guy. This policy explains how refunds are handled.</p><h3>1. General Policy</h3><p>Because digital services are delivered immediately, we generally do not offer automatic refunds. Refunds are granted at our discretion for valid technical reasons.</p><h3>2. EU Consumer Rights</h3><p>EU/EEA users have a 14-day right of withdrawal unless they agreed to immediate access (which waives this right). However, refunds are still possible if the service is defective.</p><h3>3. Renewals</h3><p>Renewals are non-refundable. Cancel before the billing date to avoid charges.</p><h3>4. Billing Errors</h3><p>If you were charged incorrectly, contact us to investigate and receive a full refund if confirmed.</p><h3>5. How to Request</h3><p>Email <strong>logan@aplamon.com</strong> with your account email, charge date, and reason. We respond within 7 business days.</p></div></div>`; }
