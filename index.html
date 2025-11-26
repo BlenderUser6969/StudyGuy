@@ -9,13 +9,13 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, getDoc, setDoc, where, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, getDoc, setDoc, where, limit, startAt, endAt, getDocs, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
 
         window.firebaseModules = { 
             initializeApp, getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously, 
             GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile,
-            getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, getDoc, setDoc, where, limit,
+            getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, getDoc, setDoc, where, limit, startAt, endAt, getDocs, arrayUnion,
             getFunctions, httpsCallable
         };
     </script>
@@ -44,49 +44,18 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
-        
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .dark ::-webkit-scrollbar-thumb { background: #4b5563; }
-        
         .markdown-body ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
         .markdown-body ol { list-style-type: decimal; padding-left: 1.5em; margin-bottom: 1em; }
         .markdown-body p { margin-bottom: 0.8em; }
         .markdown-body h1, .markdown-body h2, .markdown-body h3 { font-weight: 700; margin-top: 1em; margin-bottom: 0.5em; }
-        .markdown-body h1 { font-size: 1.75rem; }
-        .markdown-body h2 { font-size: 1.4rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.3em; }
-        .markdown-body h3 { font-size: 1.2rem; }
-        .dark .markdown-body h2 { border-bottom-color: #374151; }
-
-        /* Mode Themes */
-        .mode-blurt { --primary: #4f46e5; --bg: #eef2ff; --text: #4338ca; }
-        .mode-art { --primary: #0ea5e9; --bg: #e0f2fe; --text: #0369a1; }
-        .mode-essay { --primary: #e11d48; --bg: #ffe4e6; --text: #be123c; }
-        .mode-speech { --primary: #d97706; --bg: #fef3c7; --text: #b45309; }
-        .mode-presentation { --primary: #16a34a; --bg: #dcfce7; --text: #15803d; }
-
-        /* Dark Mode Overrides */
-        .dark .mode-blurt { --bg: rgba(79, 70, 229, 0.15); --text: #818cf8; }
-        .dark .mode-art { --bg: rgba(14, 165, 233, 0.15); --text: #38bdf8; }
-        .dark .mode-essay { --bg: rgba(225, 29, 72, 0.15); --text: #fb7185; }
-        .dark .mode-speech { --bg: rgba(217, 119, 6, 0.15); --text: #fbbf24; }
-        .dark .mode-presentation { --bg: rgba(22, 163, 74, 0.15); --text: #4ade80; }
-
         .recording-pulse { animation: pulse-red 1.5s infinite; }
-        @keyframes pulse-red {
-            0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(225, 29, 72, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
-        }
-
-        .locked-overlay {
-            background: rgba(255,255,255,0.7);
-            backdrop-filter: blur(2px);
-        }
-        .dark .locked-overlay {
-            background: rgba(0,0,0,0.7);
-        }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(225, 29, 72, 0); } 100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); } }
+        .locked-overlay { background: rgba(255,255,255,0.7); backdrop-filter: blur(2px); }
+        .dark .locked-overlay { background: rgba(0,0,0,0.7); }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200 h-screen overflow-hidden flex flex-col transition-colors duration-300">
@@ -94,9 +63,7 @@
     <!-- Header -->
     <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex justify-between items-center shrink-0 z-20 relative shadow-sm">
         <div class="flex items-center gap-3 cursor-pointer group" onclick="app.setView('dashboard')">
-            <!-- Logo -->
             <img src="studyguylogo.png" alt="Logo" class="w-10 h-10 object-contain group-hover:scale-105 transition-transform rounded-lg" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden')">
-            <!-- Fallback Icon if logo missing -->
             <div class="hidden bg-gray-900 dark:bg-indigo-600 text-white p-2.5 rounded-xl group-hover:scale-105 transition-transform shadow-md">
                 <i data-lucide="graduation-cap" class="w-6 h-6"></i>
             </div>
@@ -112,9 +79,6 @@
             </div>
         </div>
         <div class="flex items-center gap-3">
-            <button onclick="app.setView('social')" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-500 dark:text-gray-400 transition-colors" title="Social">
-                <i data-lucide="users" class="w-6 h-6"></i>
-            </button>
             <button id="auth-btn" onclick="app.toggleAuthModal()" class="text-sm font-bold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                 Sign In
             </button>
@@ -123,10 +87,6 @@
             </button>
             <button onclick="app.toggleSettings()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-500 dark:text-gray-400 transition-colors">
                 <i data-lucide="settings" class="w-6 h-6"></i>
-            </button>
-            <button onclick="app.setView('profile')" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-500 dark:text-gray-400 transition-colors relative">
-                <i data-lucide="user" class="w-6 h-6"></i>
-                <span id="auth-dot" class="absolute top-2 right-2 w-2 h-2 rounded-full bg-gray-300"></span>
             </button>
         </div>
     </header>
@@ -137,22 +97,6 @@
             <div class="flex flex-col items-center gap-3"><i data-lucide="loader-2" class="w-8 h-8 animate-spin text-indigo-500"></i><span class="text-sm font-medium">Loading...</span></div>
         </div>
     </main>
-
-    <!-- Footer -->
-    <footer class="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 py-8 shrink-0 mt-auto">
-        <div class="max-w-5xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-            <div class="flex gap-6">
-                <button onclick="app.setView('terms')" class="hover:text-gray-900 dark:hover:text-white transition-colors">Terms</button>
-                <button onclick="app.setView('privacy')" class="hover:text-gray-900 dark:hover:text-white transition-colors">Privacy</button>
-                <button onclick="app.setView('refund')" class="hover:text-gray-900 dark:hover:text-white transition-colors">Refunds</button>
-            </div>
-            <div class="flex items-center gap-4">
-                <span>&copy; 2025 Study Guy</span>
-                <span class="w-1 h-1 bg-gray-300 dark:bg-gray-700 rounded-full"></span>
-                <a href="mailto:logan@aplamon.com" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">logan@aplamon.com</a>
-            </div>
-        </div>
-    </footer>
 
     <!-- Auth Modal -->
     <div id="auth-modal" class="fixed inset-0 bg-black/50 dark:bg-black/70 hidden items-center justify-center z-50 backdrop-blur-sm">
@@ -169,6 +113,7 @@
         </div>
     </div>
 
+    <!-- Settings Modal -->
     <div id="settings-modal" class="fixed inset-0 bg-black/50 dark:bg-black/70 hidden items-center justify-center z-50 backdrop-blur-sm">
         <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-gray-100 dark:border-gray-800">
             <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center"><h2 class="text-lg font-bold text-gray-900 dark:text-white" id="settings-title">Settings</h2><button onclick="app.toggleSettings()" class="text-gray-400"><i data-lucide="x" class="w-5 h-5"></i></button></div>
@@ -181,9 +126,6 @@
         </div>
     </div>
 
-    <!-- Shared Modal -->
-    <div id="share-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 backdrop-blur-md"></div>
-
     <!-- Upgrade Modal -->
     <div id="upgrade-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 backdrop-blur-md">
         <div class="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg mx-4 p-8 text-center relative border border-indigo-100 dark:border-gray-800">
@@ -195,6 +137,15 @@
         </div>
     </div>
     
+    <!-- Guide Modal -->
+    <div id="guide-modal" class="fixed inset-0 bg-black/50 dark:bg-black/70 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
+        <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl h-[80vh] flex flex-col border border-gray-100 dark:border-gray-800 relative overflow-hidden">
+            <div class="p-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center shrink-0"><div class="flex items-center gap-2"><div class="bg-indigo-100 dark:bg-indigo-900/50 p-1.5 rounded-lg text-indigo-600 dark:text-indigo-400"><i data-lucide="sparkles" class="w-5 h-5"></i></div><h2 class="text-lg font-bold text-gray-900 dark:text-white">AI Study Guide</h2></div><button onclick="document.getElementById('guide-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><i data-lucide="x" class="w-5 h-5"></i></button></div>
+            <div id="guide-content" class="flex-1 overflow-y-auto p-8 markdown-body text-sm text-gray-700 dark:text-gray-300 leading-relaxed"></div>
+            <div class="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 shrink-0 flex justify-end gap-2"><button onclick="document.execCommand('copy')" class="text-xs font-bold text-gray-500 hover:text-gray-900 dark:hover:text-white px-4 py-2">Copy</button><button onclick="document.getElementById('guide-modal').classList.add('hidden')" class="bg-gray-900 dark:bg-white text-white dark:text-black px-6 py-2 rounded-lg font-bold text-sm">Done</button></div>
+        </div>
+    </div>
+
     <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-full shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-2 font-medium pointer-events-none"><span id="toast-msg">Message</span></div>
 
     <script>
@@ -208,8 +159,7 @@
             constructor() {
                 this.state = { topics: [], currentView: 'dashboard', activeTopicId: null, createMode: 'blurt', isRecording: false, historyIndex: 0, tempFile: null, 
                 theme: localStorage.getItem('studyguy_theme') || 'light', lang: localStorage.getItem('studyguy_lang') || 'en', 
-                user: null, isPro: false, customName: localStorage.getItem('studyguy_name') || '', bio: '', tags: '', username: '', 
-                friends: [], groups: [], activeGroupId: null, socialTab: 'friends' };
+                user: null, isPro: false, customName: '' };
                 this.container = document.getElementById('app-container');
                 this.init();
             }
@@ -233,52 +183,45 @@
 
             async handleUserLogin(user) {
                 this.state.user = user;
-                const { doc, getDoc, collection, onSnapshot, query, where } = window.firebaseModules;
+                const { collection, onSnapshot } = window.firebaseModules;
                 
-                // Load Profile
-                try { 
-                    const profileSnap = await getDoc(doc(this.db, 'artifacts', this.appId, 'users', user.uid, 'profile', 'info')); 
-                    if(profileSnap.exists()) { 
-                        const data = profileSnap.data();
-                        this.state.customName = data.name || '';
-                        this.state.bio = data.bio || '';
-                        this.state.tags = data.tags || '';
-                        this.state.username = data.username || '';
-                    }
-                } catch(e) {}
-
-                // Load Friends (User's friend list)
-                try {
-                    onSnapshot(collection(this.db, 'artifacts', this.appId, 'users', user.uid, 'friends'), (snap) => {
-                        this.state.friends = snap.docs.map(d => d.data());
-                        if(this.state.currentView === 'social') this.renderSocial(); // Live update
-                    }, (e) => console.log('Friends permission pending', e));
-                } catch(e) {}
-
-                // Load Groups (Groups user is a member of)
-                try {
-                    const groupQuery = query(collection(this.db, 'artifacts', this.appId, 'groups'), where('members', 'array-contains', user.uid));
-                    onSnapshot(groupQuery, (snap) => {
-                        this.state.groups = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                        if(this.state.currentView === 'social') this.renderSocial();
-                    }, (e) => console.log('Group permission pending', e));
-                } catch(e) {}
+                this.state.customName = user.displayName || 'Guest';
+                if(document.getElementById('username-display')) document.getElementById('username-display').innerText = this.state.customName;
 
                 const statusDot = document.getElementById('auth-dot');
                 if(statusDot) statusDot.className = "absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500";
                 if (user.isAnonymous) { document.getElementById('auth-btn').classList.remove('hidden'); } else { document.getElementById('auth-btn').classList.add('hidden'); }
                 
-                // Load Subscription
                 try {
                     const subCollection = collection(this.db, 'customers', user.uid, 'subscriptions');
                     onSnapshot(subCollection, (snap) => {
                         let hasActive = false; snap.forEach(doc => { const data = doc.data(); if (['active', 'trialing', 'past_due'].includes(data.status)) hasActive = true; });
                         this.state.isPro = hasActive;
                         this.updateHeaderPlan();
-                    }, (e) => console.log('Sub permission pending', e));
+                    });
                 } catch(e) {}
                 this.setupDataListener();
             }
+            
+            updateHeaderPlan() {
+                const planBadge = document.getElementById('plan-badge');
+                const upgradeBtn = document.getElementById('upgrade-btn');
+                
+                if (this.state.isPro) {
+                    if(planBadge) {
+                        planBadge.textContent = "Pro Plan";
+                        planBadge.className = "text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800";
+                    }
+                    if(upgradeBtn) upgradeBtn.classList.add('hidden');
+                } else {
+                    if(planBadge) {
+                        planBadge.textContent = "Free Plan";
+                        planBadge.className = "text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400";
+                    }
+                    if(upgradeBtn) upgradeBtn.classList.remove('hidden');
+                }
+            }
+
             setupDataListener() {
                 if (!this.state.user) return;
                 const { collection, onSnapshot, query } = window.firebaseModules;
@@ -286,128 +229,160 @@
                 onSnapshot(q, (s) => { this.state.topics = s.docs.map(d => ({ id: d.id, ...d.data() })); if(this.state.currentView === 'dashboard') this.render(); });
             }
             
-            toggleAuthModal() { const m = document.getElementById('auth-modal'); m.classList.toggle('hidden'); m.classList.toggle('flex'); }
-            showRegisterFields() { document.getElementById('name-field').classList.remove('hidden'); }
-            showAuthError(msg) { document.getElementById('auth-error-msg').innerText = msg; document.getElementById('auth-error-msg').classList.remove('hidden'); }
-            async handleGoogleLogin() { const { GoogleAuthProvider, signInWithPopup } = window.firebaseModules; try { await signInWithPopup(this.auth, new GoogleAuthProvider()); this.toggleAuthModal(); } catch(e) { this.showAuthError(e.message); } }
-            async handleEmailAuth(type) { const { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } = window.firebaseModules; const e = document.getElementById('auth-email').value, p = document.getElementById('auth-password').value; try { if(type === 'register') { await createUserWithEmailAndPassword(this.auth, e, p); } else { await signInWithEmailAndPassword(this.auth, e, p); } this.toggleAuthModal(); } catch(err) { this.showAuthError(err.message); } }
-            async handleSignOut() { await window.firebaseModules.signOut(this.auth); location.reload(); }
-            triggerUpgrade() { if(!this.state.user || this.state.user.isAnonymous) return this.toggleAuthModal(); document.getElementById('upgrade-modal').classList.remove('hidden'); document.getElementById('upgrade-modal').classList.add('flex'); }
-            async startStripeCheckout() { const { addDoc, collection, onSnapshot } = window.firebaseModules; try { const ref = await addDoc(collection(this.db, 'customers', this.state.user.uid, 'checkout_sessions'), { price: STRIPE_PRICE_ID, success_url: window.location.href, cancel_url: window.location.href }); onSnapshot(ref, (s) => { const d = s.data(); if(d.url) window.location.assign(d.url); }); } catch(e) { alert("Error: " + e.message); } }
-            updateHeaderPlan() { const b = document.getElementById('plan-badge'); if(this.state.isPro) { b.innerText = "PRO"; b.className = "text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-sm"; } }
-            async submitAssessment() { /* ... AI logic ... */ const topic = this.state.topics.find(t => t.id === this.state.activeTopicId); const mode = topic.mode; let userContent = ""; if (mode === 'blurt') userContent = document.getElementById('blurt-input').value; else if (mode === 'essay') userContent = document.getElementById('essay-input').value; else userContent = "(File/Audio)"; if (!userContent && !this.state.tempFile) return this.showToast("Input required"); this.setLoading(true); try { const { httpsCallable } = window.firebaseModules; const gradeSubmission = httpsCallable(this.functions, 'aiTutorAgent'); const result = await gradeSubmission({ action: 'grade', topic: topic, userContent: userContent, mode: mode }); const aiResult = result.data; if(!aiResult.letter_grade) aiResult.letter_grade = getLetterGrade(aiResult.score); const newHistoryItem = { id: crypto.randomUUID(), date: new Date().toISOString(), text: userContent, result: aiResult, mode: mode }; const { updateDoc, doc } = window.firebaseModules; await updateDoc(doc(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'topics', topic.id), { history: [newHistoryItem, ...topic.history] }); this.setView('result', topic.id); } catch (err) { console.error(err); this.showToast("Error: " + err.message); } finally { this.setLoading(false); } }
-            
-            // --- SOCIAL FEATURES ---
+            // --- AUTH & SUBSCRIPTION METHODS ---
 
-            async saveProfile() {
-                const name = document.getElementById('profile-name').value;
-                const username = document.getElementById('profile-username').value.trim().toLowerCase();
-                const bio = document.getElementById('profile-bio').value;
-                const tags = document.getElementById('profile-tags').value;
-                
-                // Calculate total score for leaderboard
-                let totalScore = 0;
-                this.state.topics.forEach(t => {
-                    t.history.forEach(h => { if(h.result && h.result.score) totalScore += h.result.score; });
-                });
+            toggleAuthModal() {
+                const el = document.getElementById('auth-modal');
+                el.classList.toggle('hidden');
+                el.classList.toggle('flex');
+            }
 
-                if(this.state.user) {
-                    const { doc, setDoc } = window.firebaseModules;
-                    // Private
-                    await setDoc(doc(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'profile', 'info'), { name, username, bio, tags }, { merge: true });
-                    
-                    // Public
-                    if (username) {
-                        try {
-                            await setDoc(doc(this.db, 'artifacts', this.appId, 'public_profiles', username), {
-                                uid: this.state.user.uid,
-                                displayName: name,
-                                bio: bio,
-                                tags: tags,
-                                totalScore: totalScore
-                            });
-                            this.showToast("Profile & Leaderboard Updated");
-                        } catch(e) { 
-                            console.error(e); 
-                            this.showToast("Error: Username might be taken."); 
-                        }
-                    }
+            async handleGoogleLogin() {
+                const { GoogleAuthProvider, signInWithPopup } = window.firebaseModules;
+                try {
+                    const provider = new GoogleAuthProvider();
+                    await signInWithPopup(this.auth, provider);
+                    this.toggleAuthModal();
+                    this.showToast("Signed in with Google");
+                } catch (error) {
+                    document.getElementById('auth-error-msg').textContent = error.message;
+                    document.getElementById('auth-error-msg').classList.remove('hidden');
                 }
+            }
+            
+            showRegisterFields() {
+                document.getElementById('name-field').classList.remove('hidden');
+                document.getElementById('login-btn').classList.add('hidden');
+                document.getElementById('signup-btn').textContent = 'Create Account';
+                document.getElementById('signup-btn').onclick = () => this.handleEmailAuth('signup');
+            }
+            
+            async handleEmailAuth(mode) {
+                const email = document.getElementById('auth-email').value;
+                const password = document.getElementById('auth-password').value;
+                const { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } = window.firebaseModules;
+                
+                try {
+                    if (mode === 'signup') {
+                        const name = document.getElementById('auth-name').value;
+                        if (!document.getElementById('tos-check').checked) throw new Error("Accept terms.");
+                        const cred = await createUserWithEmailAndPassword(this.auth, email, password);
+                        await updateProfile(cred.user, { displayName: name });
+                        this.showToast("Account Created!");
+                    } else {
+                        await signInWithEmailAndPassword(this.auth, email, password);
+                        this.showToast("Logged In");
+                    }
+                    this.toggleAuthModal();
+                } catch (error) {
+                    document.getElementById('auth-error-msg').textContent = error.message;
+                    document.getElementById('auth-error-msg').classList.remove('hidden');
+                }
+            }
+
+            async handleSignOut() {
+                const { signOut } = window.firebaseModules;
+                await signOut(this.auth);
+                this.state.user = null;
+                this.state.topics = [];
+                this.toggleSettings();
+                this.showToast("Signed Out");
                 this.render();
             }
 
-            async addFriend(username) {
-                const { doc, getDoc, setDoc } = window.firebaseModules;
-                try {
-                    const profileRef = doc(this.db, 'artifacts', this.appId, 'public_profiles', username.toLowerCase());
-                    const snap = await getDoc(profileRef);
-                    
-                    if (snap.exists()) {
-                        const friendData = snap.data();
-                        // Save to my friends list
-                        await setDoc(doc(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'friends', username), {
-                            uid: friendData.uid,
-                            displayName: friendData.displayName,
-                            username: username
-                        });
-                        this.showToast(`Added ${friendData.displayName}!`);
-                    } else {
-                        alert("User not found. Check spelling.");
-                    }
-                } catch (e) { console.error(e); this.showToast("Error adding friend"); }
+            triggerUpgrade() {
+                const modal = document.getElementById('upgrade-modal');
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
             }
 
-            async createGroup() {
-                const name = prompt("Group Name:");
-                if(!name) return;
-                const { addDoc, collection } = window.firebaseModules;
+            async startStripeCheckout() {
+                if (!this.state.user || this.state.user.isAnonymous) {
+                     this.showToast("Please sign in first");
+                     this.toggleAuthModal();
+                     return;
+                }
+                const { addDoc, collection, onSnapshot } = window.firebaseModules;
+                this.showToast("Starting Checkout...");
+                
                 try {
-                    await addDoc(collection(this.db, 'artifacts', this.appId, 'groups'), {
-                        name: name,
-                        members: [this.state.user.uid],
-                        owner: this.state.user.uid,
+                    const docRef = await addDoc(collection(this.db, 'customers', this.state.user.uid, 'checkout_sessions'), {
+                        price: STRIPE_PRICE_ID,
+                        success_url: window.location.href,
+                        cancel_url: window.location.href,
+                    });
+                    
+                    onSnapshot(docRef, (snap) => {
+                        const { url, error } = snap.data();
+                        if (error) {
+                            alert(`An error occurred: ${error.message}`);
+                        }
+                        if (url) {
+                            window.location.assign(url);
+                        }
+                    });
+                } catch(e) {
+                    console.error("Checkout Error:", e);
+                    this.showToast("Checkout failed. Try again.");
+                }
+            }
+
+            // --- TOPIC MANAGEMENT ---
+
+            async addTopic(e) {
+                e.preventDefault();
+                const form = e.target;
+                const title = form.title.value;
+                const desc = form.description.value;
+                const context = form.context.value;
+                const mode = this.state.createMode;
+                
+                this.setLoading(true);
+                const { addDoc, collection } = window.firebaseModules;
+                
+                try {
+                    await addDoc(collection(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'topics'), {
+                        title,
+                        description: desc,
+                        context: context,
+                        mode: mode,
+                        history: [],
                         createdAt: new Date().toISOString()
                     });
-                    this.showToast("Group created!");
-                } catch(e) { console.error(e); }
+                    this.setView('dashboard');
+                    this.showToast("Topic Created!");
+                } catch(e) {
+                    console.error("Error creating topic:", e);
+                    this.showToast("Error creating topic");
+                }
+                this.setLoading(false);
+            }
+
+            async deleteTopic(id, event) {
+                if(event) event.stopPropagation();
+                if(!confirm("Delete this topic and all history?")) return;
+                
+                const { doc, deleteDoc } = window.firebaseModules;
+                try {
+                    await deleteDoc(doc(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'topics', id));
+                    this.showToast("Topic deleted");
+                } catch(e) {
+                    console.error("Delete Error", e);
+                }
             }
             
-            async openGroup(groupId) {
-                this.state.activeGroupId = groupId;
-                this.state.currentView = 'group_detail';
-                
-                // Fetch Group Details & Feed
-                const { doc, onSnapshot, collection, orderBy, query } = window.firebaseModules;
-                onSnapshot(doc(this.db, 'artifacts', this.appId, 'groups', groupId), (s) => {
-                    this.state.activeGroupData = s.data();
-                    this.render(); // Re-render with group title
-                });
-                
-                const postsQuery = query(collection(this.db, 'artifacts', this.appId, 'groups', groupId, 'posts'), orderBy('date', 'desc'));
-                onSnapshot(postsQuery, (s) => {
-                    this.state.groupPosts = s.docs.map(d => d.data());
-                    this.render();
-                });
-            }
-
-            async postToGroup(text, type = 'chat', score = null) {
-                if(!text) return;
-                const { addDoc, collection } = window.firebaseModules;
-                await addDoc(collection(this.db, 'artifacts', this.appId, 'groups', this.state.activeGroupId, 'posts'), {
-                    author: this.state.customName || "Unknown",
-                    text: text,
-                    type: type, // 'chat', 'score', 'challenge'
-                    score: score,
-                    date: new Date().toISOString()
-                });
-                // If challenge, store specifically? For now, simple post is fine for MVP
-            }
-
-            async shareResultToGroup(groupId, score, topicTitle) {
-                this.state.activeGroupId = groupId;
-                await this.postToGroup(`I just got ${score}% on ${topicTitle}! 🚀`, 'score', score);
-                this.showToast("Shared to group!");
-                this.openGroup(groupId);
+            async manageSubscription() {
+                if (!this.state.user || this.state.user.isAnonymous) return this.showToast("Log in to manage subscription");
+                const { addDoc, collection, onSnapshot } = window.firebaseModules;
+                this.showToast("Opening Portal...");
+                try {
+                    const docRef = await addDoc(collection(this.db, 'customers', this.state.user.uid, 'portal_sessions'), { return_url: window.location.href });
+                    onSnapshot(docRef, (snap) => {
+                        const { url, error } = snap.data();
+                        if (url) window.location.assign(url);
+                        if (error) alert(`Error: ${error.message}`);
+                    });
+                } catch (e) { console.error(e); this.showToast("Failed to open portal"); }
             }
 
             // --- UI HELPERS ---
@@ -424,123 +399,24 @@
                 this.state.isRecording = false; 
                 this.state.tempFile = null; 
                 this.state.audioChunks = []; 
-                
                 if(this.state.mediaRecorder && this.state.mediaRecorder.state !== 'inactive') {
                     this.state.mediaRecorder.stop();
                 }
-                
                 this.render(); 
             }
             
             render() { 
                 this.container.innerHTML = ''; 
-                if (this.state.currentView === 'social') this.container.innerHTML = this.renderSocial();
-                else if (this.state.currentView === 'group_detail') this.container.innerHTML = this.renderGroupDetail();
-                else if (this.state.currentView === 'dashboard') this.container.innerHTML = this.renderDashboard();
+                if (this.state.currentView === 'dashboard') this.container.innerHTML = this.renderDashboard();
                 else if (this.state.currentView === 'create') this.container.innerHTML = this.renderCreate(); 
                 else if (this.state.currentView === 'session') this.container.innerHTML = this.renderSession(); 
                 else if (this.state.currentView === 'result') this.container.innerHTML = this.renderResult(); 
-                else if (this.state.currentView === 'profile') this.container.innerHTML = this.renderProfile(); 
                 else if (this.state.currentView === 'privacy') this.container.innerHTML = this.renderPrivacy(); 
                 else if (this.state.currentView === 'terms') this.container.innerHTML = this.renderTerms(); 
                 else if (this.state.currentView === 'refund') this.container.innerHTML = this.renderRefund(); 
                 lucide.createIcons(); 
             }
             
-            // --- NEW SOCIAL VIEWS ---
-
-            renderSocial() {
-                const friends = this.state.friends || [];
-                const groups = this.state.groups || [];
-                const activeTab = this.state.socialTab || 'friends';
-
-                return `
-                <div class="max-w-4xl mx-auto p-6 md:p-10 animate-fade-in h-full flex flex-col">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Social Hub</h2>
-                        <button onclick="app.setView('dashboard')" class="text-gray-500 hover:text-gray-900 dark:hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
-                    </div>
-                    
-                    <div class="flex gap-4 mb-6 border-b border-gray-200 dark:border-gray-700">
-                        <button onclick="app.state.socialTab='friends'; app.render()" class="pb-2 px-4 font-bold ${activeTab === 'friends' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500'}">Friends</button>
-                        <button onclick="app.state.socialTab='groups'; app.render()" class="pb-2 px-4 font-bold ${activeTab === 'groups' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500'}">Groups</button>
-                    </div>
-
-                    <div class="flex-1 overflow-y-auto">
-                        ${activeTab === 'friends' ? `
-                            <div class="mb-6 flex gap-2">
-                                <input type="text" id="friend-search" placeholder="Add friend by username..." class="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
-                                <button onclick="app.addFriend(document.getElementById('friend-search').value)" class="bg-indigo-600 text-white px-4 rounded-lg font-bold">Add</button>
-                            </div>
-                            <div class="space-y-2">
-                                ${friends.length ? friends.map(f => `
-                                    <div class="bg-white dark:bg-gray-800 p-4 rounded-xl flex justify-between items-center shadow-sm border border-gray-100 dark:border-gray-700">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">${f.displayName[0]}</div>
-                                            <div>
-                                                <p class="font-bold text-gray-900 dark:text-white">${f.displayName}</p>
-                                                <p class="text-xs text-gray-500">@${f.username}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                `).join('') : `<p class="text-gray-500 text-center py-10">No friends added yet.</p>`}
-                            </div>
-                        ` : `
-                            <div class="mb-6 flex justify-end">
-                                <button onclick="app.createGroup()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Create Group</button>
-                            </div>
-                            <div class="grid gap-4 md:grid-cols-2">
-                                ${groups.length ? groups.map(g => `
-                                    <div onclick="app.openGroup('${g.id}')" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:shadow-md transition-all">
-                                        <div class="flex justify-between items-start">
-                                            <h3 class="font-bold text-lg text-gray-900 dark:text-white">${g.name}</h3>
-                                            <span class="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">${g.members.length} members</span>
-                                        </div>
-                                        <p class="text-xs text-gray-500 mt-2">Click to view feed & challenges</p>
-                                    </div>
-                                `).join('') : `<p class="col-span-2 text-gray-500 text-center py-10">No groups yet.</p>`}
-                            </div>
-                        `}
-                    </div>
-                </div>`;
-            }
-
-            renderGroupDetail() {
-                const group = this.state.activeGroupData || { name: 'Loading...' };
-                const posts = this.state.groupPosts || [];
-                
-                return `
-                <div class="max-w-4xl mx-auto p-4 md:p-6 h-full flex flex-col animate-fade-in">
-                    <div class="flex items-center justify-between mb-4 shrink-0">
-                        <button onclick="app.setView('social')" class="text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 font-medium"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</button>
-                        <h2 class="text-xl font-bold text-gray-900 dark:text-white">${group.name}</h2>
-                        <button onclick="const u=prompt('Enter username to invite:'); if(u) alert('Invite feature coming soon!');" class="text-indigo-600 text-xs font-bold"><i data-lucide="user-plus" class="w-5 h-5"></i></button>
-                    </div>
-                    
-                    <!-- Feed -->
-                    <div class="flex-1 overflow-y-auto space-y-4 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 mb-4">
-                        ${posts.length ? posts.map(p => `
-                            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 ${p.type === 'score' ? 'border-l-4 border-l-green-500' : ''} ${p.type === 'challenge' ? 'border-l-4 border-l-red-500' : ''}">
-                                <div class="flex justify-between items-start mb-1">
-                                    <span class="font-bold text-sm text-gray-900 dark:text-white">${p.author}</span>
-                                    <span class="text-[10px] text-gray-400">${new Date(p.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-                                </div>
-                                <p class="text-sm text-gray-700 dark:text-gray-300">${p.text}</p>
-                                ${p.type === 'score' ? `<div class="mt-2 inline-block bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Score: ${p.score}</div>` : ''}
-                            </div>
-                        `).join('') : `<div class="text-center text-gray-400 py-10">No posts yet. Be the first!</div>`}
-                    </div>
-
-                    <!-- Input Area -->
-                    <div class="shrink-0 flex gap-2">
-                        <input type="text" id="group-chat-input" placeholder="Type a message..." class="flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
-                        <button onclick="app.postToGroup(document.getElementById('group-chat-input').value); document.getElementById('group-chat-input').value=''" class="bg-indigo-600 text-white p-3 rounded-xl hover:bg-indigo-700 transition-colors"><i data-lucide="send" class="w-5 h-5"></i></button>
-                        <button onclick="const c=prompt('Enter Challenge:'); if(c) app.postToGroup('🔥 CHALLENGE: '+c, 'challenge')" class="bg-red-500 text-white p-3 rounded-xl hover:bg-red-600 transition-colors" title="Create Challenge"><i data-lucide="flame" class="w-5 h-5"></i></button>
-                    </div>
-                </div>`;
-            }
-
-            // [Renderers for Dashboard, Create, Session, Result, Privacy, Terms, Refund are unchanged from previous efficient version, just ensure renderResult includes the "Share" button below]
             renderDashboard() { /* Same dashboard code */ 
                 const topicsList = this.state.topics.map(topic => {
                     const modeConfig = MODES[topic.mode] || MODES.blurt;
@@ -571,170 +447,6 @@
                 const modes = Object.values(MODES);
                 const currentMode = MODES[this.state.createMode];
                 return `<div class="max-w-2xl mx-auto p-6 md:p-10 animate-fade-in"><button onclick="app.setView('dashboard')" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 flex items-center gap-2 transition-colors font-medium"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</button><div class="bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden"><div class="p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50"><h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Create New Topic</h2><div class="grid grid-cols-2 md:grid-cols-5 gap-2">${modes.map(m => {const isLocked = !m.free && !this.state.isPro; return `<button type="button" onclick="${isLocked ? 'app.triggerUpgrade()' : `app.state.createMode = '${m.id}'; app.render()`}" class="relative flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all ${this.state.createMode === m.id ? `border-${m.color.split('-')[1]}-500 bg-${m.color.split('-')[1]}-50 dark:bg-${m.color.split('-')[1]}-900/20 text-${m.color.split('-')[1]}-700 dark:text-${m.color.split('-')[1]}-300` : 'border-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500'} ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}">${isLocked ? `<div class="absolute top-1 right-1 text-gray-400"><i data-lucide="lock" class="w-3 h-3"></i></div>` : ''}<i data-lucide="${m.icon}" class="w-5 h-5"></i><span class="text-[10px] font-bold uppercase tracking-wide">${m.label}</span></button>`}).join('')}</div>${!currentMode.free && !this.state.isPro ? `<div class="mt-4 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg flex items-center justify-center gap-2"><i data-lucide="lock" class="w-4 h-4"></i> This mode requires Study Guy Pro.</div>` : `<p class="mt-4 text-sm text-gray-500 dark:text-gray-400 text-center italic">${currentMode.desc}</p>`}</div><form onsubmit="app.addTopic(event)" class="p-8 space-y-6 ${!currentMode.free && !this.state.isPro ? 'opacity-50 pointer-events-none' : ''}"><div><label class="block text-sm font-bold text-gray-900 dark:text-gray-200 mb-2">Title</label><input type="text" name="title" required placeholder="e.g. Biology 101" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-gray-900 dark:focus:ring-indigo-500 outline-none transition-all"></div><div><label class="block text-sm font-bold text-gray-900 dark:text-gray-200 mb-2">Description</label><textarea name="description" required rows="2" placeholder="Brief summary..." class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-gray-900 dark:focus:ring-indigo-500 outline-none transition-all"></textarea></div><div><label class="block text-sm font-bold text-gray-900 dark:text-gray-200 mb-2">Grading Context</label><textarea name="context" rows="3" placeholder="Specific things the AI should look for..." class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-gray-900 dark:focus:ring-indigo-500 outline-none transition-all"></textarea></div><button type="submit" class="w-full bg-gray-900 dark:bg-indigo-600 hover:bg-black dark:hover:bg-indigo-500 text-white py-4 rounded-xl font-bold shadow-lg transform transition-all active:scale-95">Create Topic</button></form></div></div>`;
-            }
-            renderSession() { /* ... same session code ... */ 
-                const topic = this.state.topics.find(t => t.id === this.state.activeTopicId);
-                const modeConfig = MODES[topic.mode];
-                let interactionArea = '';
-                
-                if (topic.mode === 'blurt') interactionArea = `<div class="relative h-full"><textarea id="blurt-input" class="w-full h-full p-6 resize-none outline-none text-lg text-gray-800 dark:text-gray-200 leading-relaxed font-medium placeholder-gray-300 bg-transparent" placeholder="Start typing..."></textarea><button id="blurt-mic-btn" onclick="app.initSpeech()" class="absolute bottom-6 right-6 p-4 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-indigo-600 transition-all transform hover:scale-110"><i data-lucide="mic" class="w-6 h-6"></i><div id="blurt-mic-pulse" class="absolute inset-0 bg-red-400 rounded-full opacity-0 animate-ping hidden"></div></button></div>`;
-                else if (topic.mode === 'presentation' || topic.mode === 'art') interactionArea = `<div class="flex flex-col h-full items-center justify-center p-6 bg-gray-50/50 dark:bg-gray-800/50">${this.state.tempFile ? `<div class="relative w-full h-full flex flex-col items-center"><img src="${this.state.tempFile.data}" class="max-h-[50vh] object-contain rounded-lg shadow-md"><button onclick="document.getElementById('file-upload').click()" class="mt-4 text-sm text-blue-600 font-semibold hover:underline">Change File</button>${topic.mode === 'art' ? '<textarea id="art-notes" class="w-full mt-4 p-4 rounded-xl border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white text-sm outline-none" rows="3" placeholder="Artist notes..."></textarea>' : ''}</div>` : `<label class="cursor-pointer flex flex-col items-center gap-4 p-10 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl hover:bg-blue-50 dark:hover:bg-gray-800 transition-all group"><div class="w-16 h-16 bg-white dark:bg-gray-700 rounded-full shadow-sm flex items-center justify-center text-gray-400 group-hover:text-blue-500"><i data-lucide="upload" class="w-8 h-8"></i></div><span class="text-lg font-bold text-gray-700 dark:text-gray-300">Upload File</span><input type="file" id="file-upload" accept="image/*,.pdf" class="hidden" onchange="app.handleFileSelect(event, 'binary')"></label>`}</div>`;
-                else if (topic.mode === 'essay') interactionArea = `<div class="flex flex-col h-full p-6"><div class="flex justify-between items-center mb-4"><span class="text-sm font-bold text-gray-500 uppercase tracking-wide">Essay Content</span><label class="cursor-pointer text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium flex items-center gap-2"><i data-lucide="upload" class="w-3 h-3"></i> Import .TXT<input type="file" accept=".txt" class="hidden" onchange="app.handleFileSelect(event, 'text')"></label></div><textarea id="essay-input" class="flex-1 w-full p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 resize-none outline-none text-base leading-relaxed font-serif placeholder-gray-300" placeholder="Paste essay...">${this.state.tempFile && this.state.tempFile.type === 'text' ? this.state.tempFile.data : ''}</textarea></div>`;
-                else if (topic.mode === 'speech') interactionArea = `<div class="flex flex-col h-full items-center justify-center p-6 relative overflow-hidden"><div class="text-center z-10"><div class="w-32 h-32 rounded-full ${this.state.isRecording ? 'bg-red-50 dark:bg-red-900/20 recording-pulse' : 'bg-amber-50 dark:bg-amber-900/20'} flex items-center justify-center mx-auto mb-8 transition-all duration-500"><i data-lucide="mic" class="w-12 h-12 ${this.state.isRecording ? 'text-red-500' : 'text-amber-500'}"></i></div><h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">${this.state.isRecording ? 'Listening...' : 'Ready to Record'}</h3><button onclick="app.toggleRecording()" class="px-8 py-4 rounded-full font-bold text-lg shadow-lg transition-all transform active:scale-95 flex items-center gap-2 mx-auto ${this.state.isRecording ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-gray-900 dark:bg-white dark:text-black text-white hover:bg-black'}">${this.state.isRecording ? 'Stop Recording' : 'Start Recording'}</button>${this.state.audioChunks.length > 0 && !this.state.isRecording ? `<div class="mt-8 text-green-600 dark:text-green-400 font-medium flex items-center gap-2 justify-center"><i data-lucide="check-circle" class="w-5 h-5"></i> Audio Saved</div>` : ''}</div></div>`;
-
-                return `<div class="h-full flex flex-col max-w-5xl mx-auto w-full bg-white dark:bg-gray-900 shadow-2xl md:my-6 md:rounded-3xl overflow-hidden border border-gray-200 dark:border-gray-800 animate-fade-in"><div class="${modeConfig.bg} px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center shrink-0"><div><button onclick="app.setView('dashboard')" class="text-xs font-bold ${modeConfig.color} opacity-70 hover:opacity-100 uppercase tracking-wide mb-1 flex items-center gap-1"><i data-lucide="chevron-left" class="w-3 h-3"></i> Back</button><div class="flex items-center gap-2"><i data-lucide="${modeConfig.icon}" class="w-5 h-5 ${modeConfig.color}"></i><h2 class="text-lg font-bold text-gray-900 dark:text-white">${topic.title}</h2></div></div><div class="flex gap-2"><button onclick="app.generateStudyGuide()" class="text-sm font-bold bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 px-4 py-2 rounded-lg transition-colors flex items-center gap-1"><i data-lucide="sparkles" class="w-3 h-3"></i> Guide</button><button onclick="app.setView('result', '${topic.id}')" class="text-sm font-bold bg-white/50 hover:bg-white dark:bg-black/20 dark:hover:bg-black/40 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg transition-colors ${topic.history && topic.history.length ? '' : 'hidden'}">History</button></div></div><div class="flex-1 relative ${topic.mode}">${interactionArea}</div><div class="p-5 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex justify-end items-center gap-4 shrink-0 z-10"><button id="submit-btn" onclick="app.submitAssessment()" class="bg-gray-900 dark:bg-indigo-600 hover:bg-black dark:hover:bg-indigo-500 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center gap-2 min-w-[160px] justify-center"><span id="btn-text">Grade My Work</span><i id="loading-spinner" data-lucide="loader-2" class="w-5 h-5 animate-spin hidden"></i></button></div></div>`;
-            }
-
-            renderResult() {
-                const topic = this.state.topics.find(t => t.id === this.state.activeTopicId);
-                if (!topic || !topic.history || !topic.history.length) { this.setView('session', topic?.id); return; }
-                const attempt = topic.history[this.state.historyIndex];
-                const { result } = attempt;
-                const modeConfig = MODES[attempt.mode || topic.mode];
-                const letterGrade = result.letter_grade || getLetterGrade(result.score);
-                let gradeColorClass = 'text-rose-500';
-                if(result.score >= 60) gradeColorClass = 'text-amber-500'; if(result.score >= 80) gradeColorClass = 'text-emerald-500'; if(result.score >= 90) gradeColorClass = 'text-indigo-500';
-                const hasNext = this.state.historyIndex > 0;
-                const hasPrev = this.state.historyIndex < topic.history.length - 1;
-                
-                // Add Share Button Logic
-                const groups = this.state.groups || [];
-
-                return `
-                <div class="max-w-4xl mx-auto p-4 md:p-8 pb-20 animate-fade-in">
-                    <div class="flex items-center justify-between mb-6">
-                        <button onclick="app.setView('dashboard')" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 font-medium"><i data-lucide="arrow-left" class="w-4 h-4"></i> Dashboard</button>
-                        
-                        ${groups.length > 0 ? `
-                        <div class="relative group">
-                            <button class="bg-indigo-100 text-indigo-600 px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2"><i data-lucide="share-2" class="w-4 h-4"></i> Share to Group</button>
-                            <div class="hidden group-hover:block absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden z-50">
-                                ${groups.map(g => `<button onclick="app.shareResultToGroup('${g.id}', ${result.score}, '${topic.title}')" class="block w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border-b border-gray-50 dark:border-gray-700 last:border-0 truncate">${g.name}</button>`).join('')}
-                            </div>
-                        </div>
-                        ` : ''}
-
-                        <div class="flex items-center bg-white dark:bg-gray-800 rounded-full shadow-sm border border-gray-200 dark:border-gray-700 p-1"><button onclick="app.navHistory(1)" ${!hasPrev ? 'disabled' : ''} class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors"><i data-lucide="chevron-left" class="w-4 h-4 text-gray-600 dark:text-gray-300"></i></button><span class="text-xs font-bold px-3 text-gray-500 dark:text-gray-400 min-w-[140px] text-center">${new Date(attempt.date).toLocaleDateString()} <span class="opacity-50">|</span> ${new Date(attempt.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span><button onclick="app.navHistory(-1)" ${!hasNext ? 'disabled' : ''} class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors"><i data-lucide="chevron-right" class="w-4 h-4 text-gray-600 dark:text-gray-300"></i></button></div>
-                    </div>
-                    
-                    <div class="bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden mb-8">
-                        <div class="bg-gray-900 dark:bg-gray-800 p-8 text-white flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
-                            <div class="absolute top-0 right-0 opacity-10 transform translate-x-10 -translate-y-10"><i data-lucide="${modeConfig.icon}" class="w-64 h-64"></i></div>
-                            <div class="z-10 text-center md:text-left"><h2 class="text-3xl font-bold mb-2">Assessment Complete</h2><p class="text-gray-400 mb-6 max-w-sm">Results for <span class="text-white font-semibold">${topic.title}</span>.</p></div>
-                            <div class="flex items-center gap-6 z-10 bg-white/5 p-4 rounded-2xl backdrop-blur-sm border border-white/10">
-                                <div class="text-center px-4 border-r border-white/10"><span class="block text-6xl font-black ${gradeColorClass}" style="text-shadow: 0 0 20px rgba(0,0,0,0.5);">${letterGrade}</span></div>
-                                <div class="text-center px-2"><span class="block text-3xl font-bold text-white">${result.score}</span></div>
-                            </div>
-                        </div>
-                        
-                        <div class="p-8 grid md:grid-cols-2 gap-8">
-                            <div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i data-lucide="thumbs-up" class="w-4 h-4 text-emerald-500"></i> Strengths</h3><div class="markdown-body text-sm text-gray-700 dark:text-gray-300 bg-emerald-50/50 dark:bg-emerald-900/10 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/20">${marked.parse(result.positive_feedback)}</div></div>
-                            <div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i data-lucide="wrench" class="w-4 h-4 text-rose-500"></i> Improvements</h3><div class="markdown-body text-sm text-gray-700 dark:text-gray-300 bg-rose-50/50 dark:bg-rose-900/10 p-4 rounded-xl border border-rose-100 dark:border-rose-900/20">${marked.parse(result.constructive_feedback)}</div></div>
-                        </div>
-                        ${result.missing_concepts && result.missing_concepts.length ? `<div class="border-t border-gray-100 dark:border-gray-800 p-8 bg-gray-50 dark:bg-gray-800/50"><h3 class="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-4">Key Concepts to Review</h3><div class="flex flex-wrap gap-2">${result.missing_concepts.map(c => `<span class="px-3 py-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-md text-sm font-medium shadow-sm">${c}</span>`).join('')}</div></div>` : ''}
-                        
-                        <!-- FIX 1: Your Submission Box -->
-                        <div class="bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 p-6">
-                            <details class="group">
-                                <summary class="flex justify-between items-center font-medium cursor-pointer list-none text-gray-600 dark:text-gray-300"><span>Show Original Submission</span><span class="transition group-open:rotate-180"><i data-lucide="chevron-down" class="w-4 h-4"></i></span></summary>
-                                <div class="text-gray-600 dark:text-gray-400 mt-4 text-sm leading-relaxed whitespace-pre-wrap border-t border-gray-200 dark:border-gray-700 pt-4 font-mono break-words">${attempt.text}</div>
-                            </details>
-                        </div>
-                        
-                        <div class="p-4 bg-gray-100 dark:bg-gray-800 flex justify-center">
-                            <button onclick="app.setView('session', '${topic.id}')" class="text-gray-600 dark:text-gray-400 font-bold hover:text-gray-900 dark:hover:text-white flex items-center gap-2 transition-colors"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Try Again</button>
-                        </div>
-                    </div>
-                </div>`;
-            }
-
-            // Legal Pages Renderers
-            renderPrivacy() { return `<div class="max-w-3xl mx-auto p-8 animate-fade-in"><button onclick="app.setView('dashboard')" class="mb-6 text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 font-medium"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Dashboard</button><h1 class="text-3xl font-bold mb-6 dark:text-white tracking-tight">Privacy Policy</h1><div class="markdown-body text-sm text-gray-600 dark:text-gray-300 space-y-4 bg-white dark:bg-gray-900 p-8 rounded-2xl border border-gray-100 dark:border-gray-800"><p><strong>Last updated: 2025/11/24</strong></p><p>Study Guy (“we,” “us,” or “our”) is committed to protecting your privacy. This Privacy Policy explains what personal data we collect, how we use it, and your rights under the EU General Data Protection Regulation (GDPR).</p><p>By using Study Guy, you acknowledge this Privacy Policy.</p><h3>1. Data We Collect</h3><p>We collect the following personal data:</p><ul><li><strong>Account Information:</strong> Name, Email address, Password (securely hashed).</li><li><strong>Automatically Collected Data:</strong> IP address, Device info, Log data.</li><li><strong>Payment Information:</strong> Processed by Stripe. We do not store full credit card numbers.</li><li><strong>User-Generated Content:</strong> Study topics, notes, images, text, etc.</li></ul><h3>2. How We Use Your Data</h3><p>We use your data to create accounts, provide features, record subscriptions, ensure security, and improve performance. We do not sell your data.</p><h3>3. Cookies & Analytics</h3><p>We use essential cookies for login sessions and security. We do not use cookies for advertising.</p><h3>4. Data Retention</h3><p>We retain personal data only as long as necessary to maintain your account and comply with legal obligations.</p><h3>5. Sharing Your Data</h3><p>We share data with trusted providers like Stripe (payments) and hosting providers (Vercel/Google) solely to operate the service.</p><h3>6. Children & Minors</h3><p>Users aged 13–17 require parental permission. We do not knowingly collect data from children under 13.</p><h3>7. Your GDPR Rights</h3><p>EU/EEA users have rights to access, rectify, erase, restrict processing, and portability of their data. Contact us to exercise these rights.</p><h3>8. Data Security</h3><p>We use HTTPS, hashed passwords, and secure servers. No system is perfectly secure, but we work to keep data safe.</p><h3>9. Contact Information</h3><p>For privacy questions or deletion requests: <strong>logan@aplamon.com</strong></p></div></div>`; }
-            renderTerms() { return `<div class="max-w-3xl mx-auto p-8 animate-fade-in"><button onclick="app.setView('dashboard')" class="mb-6 text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 font-medium"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Dashboard</button><h1 class="text-3xl font-bold mb-6 dark:text-white tracking-tight">Terms of Service</h1><div class="markdown-body text-sm text-gray-600 dark:text-gray-300 space-y-4 bg-white dark:bg-gray-900 p-8 rounded-2xl border border-gray-100 dark:border-gray-800"><p><strong>Last updated: 2025/11/24</strong></p><p>Welcome to Study Guy. By creating an account, you agree to these Terms. If you do not agree, do not use the service.</p><h3>1. Eligibility</h3><p>You must be 13 or older. Under 18s require parental permission.</p><h3>2. Accounts</h3><p>You must provide accurate info. You are responsible for your password security and account activity.</p><h3>3. Subscription & Billing</h3><p>We offer a paid subscription unlocking full tools. Billing is processed by Stripe. You can cancel anytime; access remains until the billing period ends.</p><h3>4. Refunds</h3><p>Refunds are offered only when required by law or for valid reasons at our discretion. See Refund Policy.</p><h3>5. Use of Service</h3><p>Do not break laws, share accounts, or abuse the platform. We may suspend violators.</p><h3>6. AI Tools</h3><p>AI outputs may be inaccurate. You use generated content at your own risk.</p><h3>7. Liability</h3><p>Study Guy is provided "as is". We are not liable for data loss, downtime, or academic outcomes.</p><h3>8. Changes</h3><p>We may update these Terms. Continued use means acceptance.</p><h3>9. Contact</h3><p>Questions? Contact: <strong>logan@aplamon.com</strong></p></div></div>`; }
-            renderRefund() { return `<div class="max-w-3xl mx-auto p-8 animate-fade-in"><button onclick="app.setView('dashboard')" class="mb-6 text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 font-medium"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Dashboard</button><h1 class="text-3xl font-bold mb-6 dark:text-white tracking-tight">Refund Policy</h1><div class="markdown-body text-sm text-gray-600 dark:text-gray-300 space-y-4 bg-white dark:bg-gray-900 p-8 rounded-2xl border border-gray-100 dark:border-gray-800"><p><strong>Last updated: 2025/11/24</strong></p><p>Thank you for using Study Guy. This policy explains how refunds are handled.</p><h3>1. General Policy</h3><p>Because digital services are delivered immediately, we generally do not offer automatic refunds. Refunds are granted at our discretion for valid technical reasons.</p><h3>2. EU Consumer Rights</h3><p>EU/EEA users have a 14-day right of withdrawal unless they agreed to immediate access (which waives this right). However, refunds are still possible if the service is defective.</p><h3>3. Renewals</h3><p>Renewals are non-refundable. Cancel before the billing date to avoid charges.</p><h3>4. Billing Errors</h3><p>If you were charged incorrectly, contact us to investigate and receive a full refund if confirmed.</p><h3>5. How to Request</h3><p>Email <strong>logan@aplamon.com</strong> with your account email, charge date, and reason. We respond within 7 business days.</p></div></div>`; }
-
-            // ... [Include other helper methods like navHistory, handleFileSelect, deleteTopic, addTopic from previous version] ...
-            addTopic(e) { e.preventDefault(); const f = e.target; const nt = {title: f.title.value, description: f.description.value, context: f.context.value, mode: this.state.createMode, history: [], createdAt: Date.now()}; window.firebaseModules.addDoc(window.firebaseModules.collection(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'topics'), nt).then(() => {this.setView('dashboard'); this.showToast('Topic Created')}); }
-            deleteTopic(id, e) { e.stopPropagation(); if(confirm('Delete?')) window.firebaseModules.deleteDoc(window.firebaseModules.doc(this.db, 'artifacts', this.appId, 'users', this.state.user.uid, 'topics', id)); }
-            navHistory(dir) { const t = this.state.topics.find(x => x.id === this.state.activeTopicId); let n = this.state.historyIndex + dir; if(n < 0) n = 0; if(n >= t.history.length) n = t.history.length - 1; this.state.historyIndex = n; this.render(); }
-            handleFileSelect(e, t) { const f = e.target.files[0]; if(f) { const r = new FileReader(); r.onload = (evt) => { this.state.tempFile = {data: evt.target.result, type: f.type, name: f.name}; this.render(); }; if(t==='text') r.readAsText(f); else r.readAsDataURL(f); } }
-            toggleRecording() { 
-                if(this.state.isRecording) { this.state.mediaRecorder.stop(); this.state.isRecording = false; this.render(); } 
-                else { navigator.mediaDevices.getUserMedia({audio:true}).then(s => { this.state.mediaRecorder = new MediaRecorder(s); this.state.audioChunks = []; this.state.mediaRecorder.ondataavailable = e => this.state.audioChunks.push(e.data); this.state.mediaRecorder.start(); this.state.isRecording = true; this.render(); }); } 
-            }
-            initSpeech() { 
-                const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if(!SR) return; 
-                const r = new SR(); r.continuous = true; r.interimResults = true; 
-                const b = document.getElementById('blurt-mic-btn'); const p = document.getElementById('blurt-mic-pulse'); const ta = document.getElementById('blurt-input');
-                r.onstart = () => { p.classList.remove('hidden'); b.classList.add('text-red-500', 'border-red-500'); };
-                r.onend = () => { p.classList.add('hidden'); b.classList.remove('text-red-500', 'border-red-500'); };
-                r.onresult = e => { let f = ''; for(let i=e.resultIndex;i<e.results.length;++i) if(e.results[i].isFinal) f+=e.results[i][0].transcript; if(f) ta.value += (ta.value.endsWith(' ')?'':' ') + f + ' '; };
-                r.start(); 
-            }
-            
-            renderProfile() {
-                const { isPro, customName: name, bio, tags, username } = this.state;
-                const topicsCount = this.state.topics.length;
-                const sessionsCount = this.state.topics.reduce((acc, t) => acc + t.history.length, 0);
-                
-                // Badge Logic (Framework)
-                const badges = [
-                    { id: 'pioneer', icon: 'rocket', name: 'Pioneer', desc: 'Created your first topic', earned: topicsCount > 0 },
-                    { id: 'scholar', icon: 'book-open', name: 'Scholar', desc: 'Completed 5 study sessions', earned: sessionsCount >= 5 },
-                    { id: 'pro', icon: 'crown', name: 'Pro Member', desc: 'Upgraded to Pro', earned: isPro },
-                    { id: 'expert', icon: 'trophy', name: 'Expert', desc: 'Scored 100% on a quiz', earned: false }
-                ];
-
-                return `
-                <div class="max-w-3xl mx-auto p-6 md:p-10 animate-fade-in">
-                    <button onclick="app.setView('dashboard')" class="mb-6 text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 font-medium"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</button>
-                    
-                    <div class="bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-                        <!-- Cover & Avatar -->
-                        <div class="h-32 bg-gradient-to-r from-indigo-500 to-purple-600 relative"></div>
-                        <div class="px-8 pb-8">
-                            <div class="relative -mt-12 mb-6 flex justify-between items-end">
-                                <div class="bg-white dark:bg-gray-900 p-1 rounded-full">
-                                    <div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-300 text-3xl font-bold border-4 border-white dark:border-gray-900">
-                                        ${name ? name.charAt(0).toUpperCase() : '?'}
-                                    </div>
-                                </div>
-                                ${isPro ? '<span class="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-sm border border-white dark:border-gray-900">PRO MEMBER</span>' : '<button onclick="app.triggerUpgrade()" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">Upgrade to Pro</button>'}
-                            </div>
-                            
-                            <!-- Edit Form -->
-                            <div class="space-y-6">
-                                <div class="grid md:grid-cols-2 gap-4">
-                                    <div><label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Display Name</label><input type="text" id="profile-name" value="${name}" class="w-full text-xl font-bold text-gray-900 dark:text-white bg-transparent border-b border-transparent hover:border-gray-300 focus:border-indigo-500 outline-none transition-colors" placeholder="Your Name"></div>
-                                    <div><label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Unique Username (For Search)</label><input type="text" id="profile-username" value="${username}" class="w-full text-sm font-mono text-indigo-600 dark:text-indigo-400 bg-gray-50 dark:bg-gray-800 border border-transparent focus:border-indigo-500 rounded-lg p-2 outline-none transition-colors" placeholder="username123"></div>
-                                </div>
-                                <div><label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Bio</label><textarea id="profile-bio" rows="2" class="w-full text-gray-600 dark:text-gray-300 bg-transparent border border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:border-indigo-500 outline-none transition-colors resize-none" placeholder="Tell us about yourself...">${bio}</textarea></div>
-                                <div><label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Interests</label><input type="text" id="profile-tags" value="${tags}" class="w-full text-sm text-gray-600 dark:text-gray-300 bg-transparent border border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:border-indigo-500 outline-none transition-colors" placeholder="e.g. History, Coding"></div>
-                                <div class="flex justify-end"><button onclick="app.saveProfile()" class="bg-gray-900 dark:bg-white text-white dark:text-black px-6 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all transform active:scale-95">Save Changes</button></div>
-                            </div>
-
-                            <!-- Stats & Badges -->
-                            <div class="mt-10 pt-10 border-t border-gray-100 dark:border-gray-800">
-                                <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-6">Achievements</h3>
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    ${badges.map(b => `
-                                        <div class="p-4 rounded-2xl border ${b.earned ? 'bg-indigo-50 border-indigo-100 dark:bg-indigo-900/20 dark:border-indigo-900/50' : 'bg-gray-50 border-gray-100 dark:bg-gray-800/50 dark:border-gray-800 opacity-50 grayscale'} flex flex-col items-center text-center transition-all hover:scale-105">
-                                            <div class="w-10 h-10 rounded-full ${b.earned ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-400'} flex items-center justify-center mb-3">
-                                                <i data-lucide="${b.icon}" class="w-5 h-5"></i>
-                                            </div>
-                                            <span class="text-sm font-bold text-gray-900 dark:text-white">${b.name}</span>
-                                            <span class="text-xs text-gray-500 dark:text-gray-400 mt-1">${b.desc}</span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            </div>
-                            
-                            <div class="mt-10 text-center">
-                                <button onclick="app.handleSignOut()" class="text-red-500 hover:text-red-600 font-medium text-sm">Sign Out</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
             }
         }
         const app = new StudyGuyApp();
