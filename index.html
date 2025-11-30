@@ -600,17 +600,52 @@
                     this.showToast("Opening Billing Portal...");
                 }
 
+                // TIMEOUT SAFETY
+                const timeoutId = setTimeout(() => {
+                    if(btn && btn.disabled) {
+                        btn.disabled = false;
+                        btn.innerHTML = `Open Billing Portal <i data-lucide="external-link" class="w-4 h-4"></i>`;
+                        lucide.createIcons();
+                        alert("Connection Timed Out.\n\nPOSSIBLE FIX: Go to your Stripe Dashboard > Settings > Customer Portal and ensure it is ENABLED.");
+                    }
+                }, 15000);
+
                 try {
                     const docRef = await addDoc(collection(this.db, 'customers', this.state.user.uid, 'portal_sessions'), { return_url: window.location.href });
-                    onSnapshot(docRef, (snap) => {
-                        const { url, error } = snap.data();
-                        if (url) window.location.assign(url);
+                    
+                    const unsubscribe = onSnapshot(docRef, (snap) => {
+                        const data = snap.data();
+                        if(!data) return;
+                        
+                        console.log("Portal Session Data:", data); // Debugging
+
+                        const { url, error } = data;
+                        if (url) {
+                            clearTimeout(timeoutId);
+                            window.location.assign(url);
+                            unsubscribe();
+                        }
                         if (error) {
+                            clearTimeout(timeoutId);
                             alert(`Error: ${error.message}`);
-                            if(btn) { btn.disabled = false; btn.innerText = "Try Again"; }
+                            if(btn) { 
+                                btn.disabled = false; 
+                                btn.innerHTML = `Open Billing Portal <i data-lucide="external-link" class="w-4 h-4"></i>`;
+                                lucide.createIcons();
+                            }
+                            unsubscribe();
                         }
                     });
-                } catch (e) { console.error(e); this.showToast("Failed to open portal"); }
+                } catch (e) { 
+                    clearTimeout(timeoutId);
+                    console.error(e); 
+                    this.showToast("Failed to open portal");
+                    if(btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = `Open Billing Portal <i data-lucide="external-link" class="w-4 h-4"></i>`;
+                        lucide.createIcons();
+                    }
+                }
             }
 
             updateHeaderPlan() {
