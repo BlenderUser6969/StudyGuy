@@ -205,6 +205,15 @@
                     <p>Subs Found: <span id="debug-subs" class="text-gray-500">0</span></p>
                 </div>
 
+                <!-- Developer Info Panel -->
+                <div class="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/20">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase">Dev: Current Domain</span>
+                        <button onclick="app.copyToClipboard(window.location.hostname)" class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 font-bold underline">Copy</button>
+                    </div>
+                    <code id="dev-hostname" class="block text-xs text-blue-800 dark:text-blue-200 font-mono break-all select-all">loading...</code>
+                </div>
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Your Name</label>
                     <div class="flex gap-2">
@@ -258,7 +267,7 @@
                 </div>
             </div>
             <div class="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 shrink-0 flex justify-end gap-2">
-                <button onclick="document.execCommand('copy')" class="text-xs font-bold text-gray-500 hover:text-gray-900 dark:hover:text-white px-4 py-2">Copy to Clipboard</button>
+                <button onclick="app.copyToClipboard(document.getElementById('guide-content').innerText)" class="text-xs font-bold text-gray-500 hover:text-gray-900 dark:hover:text-white px-4 py-2">Copy to Clipboard</button>
                 <button onclick="document.getElementById('guide-modal').classList.add('hidden')" class="bg-gray-900 dark:bg-white text-white dark:text-black px-6 py-2 rounded-lg font-bold text-sm">Done</button>
             </div>
         </div>
@@ -330,6 +339,15 @@
 
             async init() {
                 this.applyTheme(this.state.theme);
+                
+                // --- DEV HELPER: Hostname Output ---
+                console.log("%c🔥 Canvas Hostname for Firebase Auth:", "font-weight:bold; color:#4f46e5; font-size:14px;");
+                console.log(window.location.hostname);
+                
+                // Update Settings Modal with Hostname
+                const devHostEl = document.getElementById('dev-hostname');
+                if(devHostEl) devHostEl.innerText = window.location.hostname;
+
                 const checkModules = setInterval(async () => {
                     if (window.firebaseModules) {
                         clearInterval(checkModules);
@@ -590,62 +608,14 @@
             
             async manageSubscription() {
                 if (!this.state.user || this.state.user.isAnonymous) return this.showToast("Log in to manage subscription");
-                const { addDoc, collection, onSnapshot } = window.firebaseModules;
                 
-                const btn = document.getElementById('billing-portal-btn');
-                if(btn) {
-                    btn.disabled = true;
-                    btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Connecting...`;
-                } else {
-                    this.showToast("Opening Billing Portal...");
-                }
-
-                // TIMEOUT SAFETY
-                const timeoutId = setTimeout(() => {
-                    if(btn && btn.disabled) {
-                        btn.disabled = false;
-                        btn.innerHTML = `Open Billing Portal <i data-lucide="external-link" class="w-4 h-4"></i>`;
-                        lucide.createIcons();
-                        alert("Connection Timed Out.\n\nPOSSIBLE FIX: Go to your Stripe Dashboard > Settings > Customer Portal and ensure it is ENABLED.");
-                    }
-                }, 15000);
-
-                try {
-                    const docRef = await addDoc(collection(this.db, 'customers', this.state.user.uid, 'portal_sessions'), { return_url: window.location.href });
-                    
-                    const unsubscribe = onSnapshot(docRef, (snap) => {
-                        const data = snap.data();
-                        if(!data) return;
-                        
-                        console.log("Portal Session Data:", data); // Debugging
-
-                        const { url, error } = data;
-                        if (url) {
-                            clearTimeout(timeoutId);
-                            window.location.assign(url);
-                            unsubscribe();
-                        }
-                        if (error) {
-                            clearTimeout(timeoutId);
-                            alert(`Error: ${error.message}`);
-                            if(btn) { 
-                                btn.disabled = false; 
-                                btn.innerHTML = `Open Billing Portal <i data-lucide="external-link" class="w-4 h-4"></i>`;
-                                lucide.createIcons();
-                            }
-                            unsubscribe();
-                        }
-                    });
-                } catch (e) { 
-                    clearTimeout(timeoutId);
-                    console.error(e); 
-                    this.showToast("Failed to open portal");
-                    if(btn) {
-                        btn.disabled = false;
-                        btn.innerHTML = `Open Billing Portal <i data-lucide="external-link" class="w-4 h-4"></i>`;
-                        lucide.createIcons();
-                    }
-                }
+                this.showToast("Opening Portal...");
+                
+                // Direct link as requested - 100% reliable fallback
+                const portalLink = "https://billing.stripe.com/p/login/bJecN6eV900gc2reaT1B600";
+                
+                // Switching to direct link to avoid "stuck" state
+                window.location.assign(portalLink);
             }
 
             updateHeaderPlan() {
@@ -930,6 +900,15 @@
                 r.onend = () => { p.classList.add('hidden'); b.classList.remove('text-red-500', 'border-red-500'); };
                 r.onresult = e => { let f = ''; for(let i=e.resultIndex;i<e.results.length;++i) if(e.results[i].isFinal) f+=e.results[i][0].transcript; if(f) ta.value += (ta.value.endsWith(' ')?'':' ') + f + ' '; };
                 r.start(); 
+            }
+            copyToClipboard(text) {
+                const el = document.createElement('textarea');
+                el.value = text;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                this.showToast('Copied to clipboard!');
             }
         }
         const app = new StudyGuyApp();
